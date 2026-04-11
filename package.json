@@ -32,9 +32,10 @@
     "build": "node scripts/build-root.mjs",
     "build:packages": "turbo run build --filter='./packages/*'",
     "build:auth": "turbo run build --filter=@mfc/auth-hub",
+    "build:auth:admin": "pnpm --dir apps/auth-admin build",
     "build:auth:ui": "turbo run build --filter=@mfc/auth-ui",
     "build:auth:policy": "turbo run build --filter=@mfc/auth-policy",
-    "deploy:auth": "pnpm --dir apps/auth deploy && pnpm --dir apps/auth-policy deploy && pnpm --dir apps/auth-ui deploy",
+    "deploy:auth": "pnpm --dir apps/auth deploy && pnpm --dir apps/auth-policy deploy && pnpm --dir apps/auth-ui deploy && pnpm --dir apps/auth-admin deploy",
     "check:cloudflare:auth": "node scripts/check-cloudflare-auth.mjs",
     "sync:auth:secrets": "node scripts/sync-auth-cloudflare-secrets.mjs",
     "sync:releases:cors": "node scripts/sync-release-r2-cors.mjs",
@@ -53,6 +54,7 @@
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "type-check:auth": "pnpm --dir apps/auth type-check",
+    "type-check:auth:admin": "pnpm --dir apps/auth-admin type-check",
     "type-check:auth:ui": "pnpm --dir apps/auth-ui type-check",
     "type-check:auth:policy": "pnpm --dir apps/auth-policy type-check",
     "type-check:web:manager": "pnpm --dir apps/web/manager type-check",
@@ -67,7 +69,7 @@
     "seed:sales": "node db/seed-sales-only.js",
     "seed:reset": "node db/reset-and-seed.js",
     "seed:complete": "node db/complete-seed.js",
-    "help": "echo \"dev, dev:web:manager, dev:web:user, dev:web:bill-home, dev:web:manager:debug, dev:web:manager:alt, dev:desktop:manager, dev:mobile:manager, dev:mobile:manager:go, dev:mobile:manager:android, dev:mobile:admin, dev:mobile:admin:android, dev:mobile:user, dev:mobile:user:android, start, start:web:manager, start:mobile:manager, build, build:web:manager, build:web:user, build:web:bill-home, build:desktop:manager, build:mobile:manager, build:mobile:admin, build:mobile:user, type-check, type-check:web:manager, type-check:web:user, type-check:web:bill-home, type-check:desktop:manager, type-check:mobile:manager, type-check:mobile:admin, type-check:mobile:user, clean, seed, seed:users, seed:sales, seed:reset, seed:complete\""
+    "help": "echo \"dev, dev:web:manager, dev:web:user, dev:web:bill-home, dev:web:manager:debug, dev:web:manager:alt, dev:desktop:manager, dev:mobile:manager, dev:mobile:manager:go, dev:mobile:manager:android, dev:mobile:admin, dev:mobile:admin:android, dev:mobile:user, dev:mobile:user:android, start, start:web:manager, start:mobile:manager, build, build:auth:admin, build:web:manager, build:web:user, build:web:bill-home, build:desktop:manager, build:mobile:manager, build:mobile:admin, build:mobile:user, type-check, type-check:auth:admin, type-check:web:manager, type-check:web:user, type-check:web:bill-home, type-check:desktop:manager, type-check:mobile:manager, type-check:mobile:admin, type-check:mobile:user, clean, seed, seed:users, seed:sales, seed:reset, seed:complete\""
   },
   "dependencies": {
     "@faker-js/faker": "^10.1.0",

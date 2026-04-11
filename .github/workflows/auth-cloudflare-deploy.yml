@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/auth-cloudflare-deploy.yml"
       - "apps/auth/**"
+      - "apps/auth-admin/**"
       - "apps/auth-ui/**"
       - "apps/auth-policy/**"
       - "package.json"
@@ -53,6 +54,8 @@ jobs:
               - "pnpm-workspace.yaml"
             auth_core:
               - "apps/auth/**"
+            auth_admin:
+              - "apps/auth-admin/**"
             auth_policy:
               - "apps/auth-policy/**"
             auth_ui:
@@ -61,6 +64,10 @@ jobs:
       - name: Type-check auth-core
         if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true'
         run: pnpm --dir apps/auth type-check
+
+      - name: Type-check auth-admin
+        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true' || steps.changes.outputs.auth_admin == 'true'
+        run: pnpm --dir apps/auth-admin type-check
 
       - name: Type-check auth-policy
         if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true' || steps.changes.outputs.auth_policy == 'true'
@@ -81,6 +88,10 @@ jobs:
       - name: Deploy auth-core Worker
         if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true'
         run: pnpm --dir apps/auth exec wrangler deploy --config wrangler.jsonc --keep-vars
+
+      - name: Deploy auth-admin Pages
+        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true' || steps.changes.outputs.auth_admin == 'true'
+        run: pnpm --dir apps/auth-admin exec wrangler pages deploy public --project-name auth-admin --branch main --commit-dirty=true
 
       - name: Deploy auth-ui Pages
         if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true' || steps.changes.outputs.auth_ui == 'true'

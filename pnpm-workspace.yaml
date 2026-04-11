@@ -1,5 +1,6 @@
 packages:
   - "apps/auth"
+  - "apps/auth-admin"
   - "apps/auth-ui"
   - "apps/auth-policy"
   - "apps/desktop/*"

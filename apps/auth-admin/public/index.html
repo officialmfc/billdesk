@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Auth Admin</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #eef3ff;
+        --surface: rgba(255, 255, 255, 0.96);
+        --surface-strong: #ffffff;
+        --border: #dbe2ee;
+        --text: #0f172a;
+        --muted: #475569;
+        --muted-2: #64748b;
+        --blue: #2563eb;
+        --blue-2: #1d4ed8;
+        --red: #b91c1c;
+        --red-bg: #fef2f2;
+        --green: #047857;
+        --green-bg: #ecfdf5;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, #eef3ff 0%, #f8fafc 100%);
+      }
+      .shell {
+        min-height: 100vh;
+        padding: 28px 20px 40px;
+        box-sizing: border-box;
+      }
+      .frame {
+        width: min(100%, 1160px);
+        margin: 0 auto;
+        border-radius: 28px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        box-shadow: 0 20px 80px rgba(15, 23, 42, 0.08);
+        padding: 28px;
+        box-sizing: border-box;
+      }
+      .hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-start;
+        margin-bottom: 22px;
+      }
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--muted-2);
+        text-transform: uppercase;
+        letter-spacing: 0.26em;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: clamp(28px, 4vw, 40px);
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+      }
+      .lead {
+        margin: 0;
+        max-width: 65ch;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .identity {
+        display: grid;
+        gap: 6px;
+        min-width: 240px;
+        justify-items: end;
+        text-align: right;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+      }
+      .identity small {
+        color: var(--muted-2);
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .identity strong {
+        font-size: 14px;
+        color: var(--text);
+        word-break: break-word;
+      }
+      .controls {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
+        gap: 12px;
+      }
+      .field {
+        display: grid;
+        gap: 8px;
+      }
+      .field label {
+        font-size: 14px;
+        font-weight: 700;
+        color: #334155;
+      }
+      .field input,
+      .field select {
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: 16px;
+        border: 1px solid #dbe2ee;
+        background: var(--surface-strong);
+        padding: 14px 16px;
+        font: inherit;
+        outline: none;
+      }
+      .actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        border: 0;
+        border-radius: 16px;
+        padding: 14px 16px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        color: #fff;
+        background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+      }
+      .button.secondary {
+        color: var(--text);
+        background: var(--surface-strong);
+        border: 1px solid #dbe2ee;
+      }
+      .button.ghost {
+        color: var(--text);
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+      }
+      .button__spinner {
+        display: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        animation: spin 0.8s linear infinite;
+        flex: 0 0 auto;
+      }
+      .button__label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      .button[disabled] .button__spinner {
+        display: inline-block;
+      }
+      .status {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        font-size: 14px;
+        line-height: 1.5;
+        background: #eff6ff;
+        color: var(--blue-2);
+      }
+      .status[data-tone="error"] {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .status[data-tone="success"] {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .status[hidden] {
+        display: none;
+      }
+      .summary {
+        margin-top: 16px;
+        padding: 16px;
+        border-radius: 20px;
+        border: 1px solid #dbe2ee;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      }
+      .summary p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 16px;
+      }
+      .panel {
+        border: 1px solid #dbe2ee;
+        border-radius: 20px;
+        padding: 16px;
+        background: #fff;
+      }
+      .panel h2 {
+        margin: 0 0 12px;
+        font-size: 18px;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+      }
+      .list {
+        display: grid;
+        gap: 10px;
+      }
+      .item {
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 12px;
+        background: #f8fafc;
+      }
+      .item strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .item small,
+      .item p {
+        margin: 0;
+        color: var(--muted-2);
+        line-height: 1.5;
+      }
+      .item-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .button.danger {
+        color: var(--red);
+        background: var(--red-bg);
+        border: 1px solid #fecaca;
+      }
+      .hidden {
+        display: none !important;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (max-width: 920px) {
+        .hero {
+          flex-direction: column;
+        }
+        .identity {
+          justify-items: start;
+          text-align: left;
+          min-width: 0;
+        }
+        .row,
+        .actions,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="frame">
+        <div class="hero">
+          <div>
+            <p class="eyebrow">Cloudflare Access only</p>
+            <h1>Auth Admin</h1>
+            <p class="lead">Search an account, revoke devices, and clear matching rate-limit entries. This surface is for admin-only control tasks.</p>
+          </div>
+          <div class="identity">
+            <small>Signed in as</small>
+            <strong data-admin-access-email>Authenticated administrator</strong>
+          </div>
+        </div>
+
+        <form id="admin-form">
+          <div class="controls">
+            <div class="row">
+              <div class="field">
+                <label for="admin-email">Email</label>
+                <input id="admin-email" name="email" type="email" autocomplete="email" required />
+              </div>
+              <div class="field">
+                <label for="admin-app">App</label>
+                <select id="admin-app" name="app">
+                  <option value="">All apps</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                  <option value="user">User</option>
+                </select>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="button" type="submit">
+                <span class="button__spinner" aria-hidden="true"></span>
+                <span class="button__label" data-admin-button-label data-default-label="Search account">Search account</span>
+              </button>
+              <button class="button secondary" type="button" data-admin-revoke-all disabled>
+                <span class="button__spinner" aria-hidden="true"></span>
+                <span class="button__label" data-admin-button-label data-default-label="Revoke all devices">Revoke all devices</span>
+              </button>
+              <button class="button ghost" type="button" data-admin-reset-rate-limits disabled>
+                <span class="button__spinner" aria-hidden="true"></span>
+                <span class="button__label" data-admin-button-label data-default-label="Reset rate limits">Reset rate limits</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="status" data-status hidden></div>
+
+          <div class="summary" data-admin-summary>
+            <p>Search by email to load account rows, devices, and rate-limit entries.</p>
+          </div>
+
+          <div class="grid">
+            <section class="panel">
+              <h2>Accounts</h2>
+              <div class="list" data-admin-accounts></div>
+            </section>
+            <section class="panel">
+              <h2>Devices</h2>
+              <div class="list" data-admin-devices></div>
+            </section>
+            <section class="panel">
+              <h2>Rate limits</h2>
+              <div class="list" data-admin-rate-limits></div>
+            </section>
+          </div>
+        </form>
+      </section>
+    </main>
+    <script>
+      window.__AUTH_HUB__ = {};
+    </script>
+    <script defer src="/admin-client.js"></script>
+  </body>
+</html>

@@ -914,71 +914,9 @@ function renderAdminPage(
   env: AuthHubCloudflareEnv,
   accessEmail: string | null
 ): Response {
-  return html(
-    pageShell({
-      env,
-      page: "admin",
-      context: null,
-      extras: {
-        accessEmail: accessEmail || "",
-      },
-      title: "Auth admin",
-      subtitle: "Find an account, revoke devices, and clear rate limits.",
-      body: `
-        <div class="admin-hero">
-          <div>
-            <div class="chip" data-tone="success">Cloudflare Access</div>
-            <p class="top-note">Search a user by email and app, then manage active devices or rate limits.</p>
-          </div>
-          <div class="admin-identity">
-            <small>Signed in as</small>
-            <strong data-admin-access-email>${escapeHtml(accessEmail || "Authenticated administrator")}</strong>
-          </div>
-        </div>
-        <form id="admin-form">
-          <div class="admin-toolbar">
-            <div class="field">
-              <label for="admin-email">Email</label>
-              <input id="admin-email" name="email" type="email" autocomplete="email" required />
-            </div>
-            <div class="field">
-              <label for="admin-app">App</label>
-              <select id="admin-app" name="app">
-                <option value="">All apps</option>
-                <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
-                <option value="user">User</option>
-              </select>
-            </div>
-          </div>
-          <div class="actions admin-actions">
-            <button class="button" type="submit">Search account</button>
-            <button class="button secondary" type="button" data-admin-revoke-all disabled>Revoke all devices</button>
-            <button class="button ghost" type="button" data-admin-reset-rate-limits disabled>Reset rate limits</button>
-          </div>
-          <div class="admin-summary" data-admin-summary>
-            <p class="small">Search by email to load account rows, devices, and rate-limit entries.</p>
-          </div>
-          <div class="admin-grid">
-            <section class="admin-section">
-              <h2>Accounts</h2>
-              <div class="admin-list" data-admin-accounts></div>
-            </section>
-            <section class="admin-section">
-              <h2>Devices</h2>
-              <div class="admin-list" data-admin-devices></div>
-            </section>
-            <section class="admin-section">
-              <h2>Rate limits</h2>
-              <div class="admin-list" data-admin-rate-limits></div>
-            </section>
-          </div>
-        </form>
-      `,
-      scriptSrc: "/admin-client.js",
-      wide: true,
-    })
-  );
+  const target = "https://auth-admin.mondalfishcenter.com/";
+  void accessEmail;
+  return Response.redirect(target, 302);
 }
 
 function normalizePath(pathname: string): string {

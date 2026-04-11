@@ -1,0 +1,18 @@
+{
+  "$schema": "../auth/node_modules/wrangler/config-schema.json",
+  "name": "auth-admin",
+  "pages_build_output_dir": "./public",
+  "compatibility_date": "2026-04-10",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "services": [
+    {
+      "binding": "AUTH_CORE",
+      "service": "auth-core"
+    }
+  ]
+}
