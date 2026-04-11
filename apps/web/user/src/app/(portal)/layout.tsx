@@ -25,7 +25,7 @@ export default function PortalLayout({
     }
   }, [isAuthenticated, isLoading, pathname, router]);
 
-  if (isLoading) {
+  if (isLoading && !isAuthenticated) {
     return (
       <main className="loading">
         <section className="panel auth-card">

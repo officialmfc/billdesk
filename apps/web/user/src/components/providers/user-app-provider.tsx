@@ -202,8 +202,40 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
         return;
       }
 
+      const runBackgroundSync = () => {
+        void (async () => {
+          try {
+            authLog("syncing current user data");
+            await withTimeout(syncCurrentUserData(), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
+            const freshProfile = await withTimeout(
+              getCurrentUserProfile(),
+              USER_SESSION_TIMEOUT_MS,
+              "getCurrentUserProfile"
+            );
+
+            if (freshProfile && isCurrent()) {
+              setProfile(freshProfile);
+              authLog("fresh profile loaded", {
+                userId: freshProfile.id,
+                userType: freshProfile.userType,
+                role: freshProfile.defaultRole,
+              });
+            }
+          } catch (error) {
+            if (isCurrent()) {
+              console.error("[UserWebAuth] sync current user data failed", error);
+            }
+          }
+        })();
+      };
+
+      if (cachedProfile || fallbackProfile) {
+        setIsLoading(false);
+        runBackgroundSync();
+        return;
+      }
+
       try {
-        authLog("syncing current user data");
         await withTimeout(syncCurrentUserData(), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
         const freshProfile = await withTimeout(
           getCurrentUserProfile(),
@@ -220,10 +252,10 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
           });
         }
       } catch (error) {
-        if (!cachedProfile || !isCurrent()) {
-          throw error;
+        if (!isCurrent()) {
+          return;
         }
-        console.error("[UserWebAuth] sync current user data failed", error);
+        throw error;
       }
     } catch (error) {
       if (!isCurrent()) {
