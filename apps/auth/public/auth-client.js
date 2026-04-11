@@ -700,6 +700,7 @@ async function bootSignup() {
   if (!form) return;
 
   const turnstileSiteKey = cfg.turnstileSiteKey || "";
+  const captchaEnabled = Boolean(cfg.captchaEnabled) && page === "signup";
   const inviteToken = cfg.inviteToken || "";
   const inviteFields = document.querySelector("#invite-fields");
   const inviteStatus = document.querySelector("#invite-status");
@@ -710,7 +711,7 @@ async function bootSignup() {
   const messageInput = document.querySelector("#signup-message");
   const passwordInput = document.querySelector("#signup-password");
   const acceptedInvite = Boolean(inviteToken);
-  const requireCaptcha = !acceptedInvite;
+  const requireCaptcha = captchaEnabled && !acceptedInvite;
   const captchaRequired = Boolean(requireCaptcha);
   const turnstileInput = document.querySelector("[data-turnstile-token]");
   let captchaToken = "";

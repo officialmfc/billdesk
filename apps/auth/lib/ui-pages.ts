@@ -50,15 +50,18 @@ function getPublicConfig(
   context: AuthContext | null,
   extras: Record<string, unknown> = {}
 ) {
+  const captchaEnabled = Boolean(extras.captchaEnabled);
   const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL?.trim() || env.SUPABASE_URL?.trim() || "";
   const supabaseAnonKey =
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || env.SUPABASE_ANON_KEY?.trim() || "";
   const sentryDsn =
     env.NEXT_PUBLIC_SENTRY_DSN?.trim() || env.SENTRY_DSN?.trim() || "";
-  const turnstileSiteKey =
-    env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || env.TURNSTILE_SITE_KEY?.trim() || "";
+  const turnstileSiteKey = captchaEnabled
+    ? env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || env.TURNSTILE_SITE_KEY?.trim() || ""
+    : "";
 
   return {
+    captchaEnabled,
     page,
     context,
     authBaseUrl:
@@ -437,6 +440,9 @@ function renderUnauthorizedPage(env: AuthHubCloudflareEnv, context: AuthContext 
       env,
       page: "unauthorized",
       context,
+      extras: {
+        captchaEnabled: false,
+      },
       title: "Access denied",
       subtitle: "This app will not continue without the required account type.",
       body: `
@@ -462,6 +468,7 @@ function renderLoginPage(
       page: "login",
       context,
       extras: {
+        captchaEnabled: false,
         flowId: flow?.id ?? "",
         deviceId: extras.deviceId,
         deviceLabel: extras.deviceLabel,
@@ -523,6 +530,7 @@ function renderSignupPage(
       page: "signup",
       context,
       extras: {
+        captchaEnabled: !inviteMode,
         flowId: flow?.id ?? "",
         inviteToken: effectiveInviteToken,
         deviceId: extras.deviceId,
@@ -598,6 +606,7 @@ function renderForgotPasswordPage(
       page: "forgot-password",
       context,
       extras: {
+        captchaEnabled: false,
         flowId: flow?.id ?? "",
         deviceId: extras.deviceId,
         deviceLabel: extras.deviceLabel,
@@ -638,6 +647,7 @@ function renderResetPasswordPage(
       page: "reset-password",
       context,
       extras: {
+        captchaEnabled: false,
         flowId: flow?.id ?? "",
         deviceId: extras.deviceId,
         deviceLabel: extras.deviceLabel,
@@ -683,6 +693,7 @@ function renderSimpleStatusPage(
       page,
       context,
       extras: {
+        captchaEnabled: false,
         flowId: flow?.id ?? "",
         deviceId: extras.deviceId,
         deviceLabel: extras.deviceLabel,
@@ -704,7 +715,10 @@ function renderAccountPage(
       env,
       page: "account",
       context,
-      extras,
+      extras: {
+        captchaEnabled: false,
+        ...extras,
+      },
       title: "Account center",
       subtitle: context
         ? `Review your current session and active devices for ${getContextLabel(context)}.`
