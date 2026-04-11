@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getInviteContextByToken } from "@/lib/server/registration-workflow";
 import { captureAuthHubError } from "@/lib/server/logger";
+import { CORS_HEADERS } from "@/lib/server/cors";
+
+export async function OPTIONS() {
+  return new NextResponse(null, { headers: CORS_HEADERS });
+}
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -12,14 +17,14 @@ export async function GET(request: Request) {
 
   try {
     const context = await getInviteContextByToken(invite);
-    return NextResponse.json({ context });
+    return NextResponse.json({ context }, { headers: CORS_HEADERS });
   } catch (error) {
     captureAuthHubError(error, {
       route: "GET /api/invites/context",
     });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Could not load invite." },
-      { status: 400 }
+      { status: 400, headers: CORS_HEADERS }
     );
   }
 }

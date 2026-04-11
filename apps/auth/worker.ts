@@ -10,6 +10,7 @@ import {
 import { buildHandoffHref } from "@/lib/handoff";
 import { createAuthHandoff, exchangeAuthHandoff } from "@/lib/server/handoff";
 import { captureAuthHubError } from "@/lib/server/logger";
+import { CORS_HEADERS, withCorsHeaders } from "@/lib/server/cors";
 import {
   approveSelfRegistration,
   assertAccessForApp,
@@ -68,7 +69,7 @@ function json(data: unknown, status = 200, headers: HeadersInit = {}): Response 
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      ...JSON_HEADERS,
+      ...withCorsHeaders(JSON_HEADERS),
       ...headers,
     },
   });
@@ -1545,11 +1546,7 @@ const worker = {
     try {
       if (request.method === "OPTIONS") {
         return new Response(null, {
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          },
+          headers: CORS_HEADERS,
         });
       }
 

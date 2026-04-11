@@ -4,6 +4,7 @@ import { buildInternalHref } from "@/lib/config";
 import { resolveActorFromBearer } from "@/lib/server/registration-workflow";
 import { captureAuthHubError } from "@/lib/server/logger";
 import { sanitizeNextPath, sanitizeReturnTo } from "@/lib/config";
+import { CORS_HEADERS } from "@/lib/server/cors";
 
 type Body = {
   accessToken?: string;
@@ -17,13 +18,7 @@ type Body = {
 };
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-    },
-  });
+  return new NextResponse(null, { headers: CORS_HEADERS });
 }
 
 export async function POST(request: Request) {
@@ -127,7 +122,7 @@ export async function POST(request: Request) {
         {
           status: 409,
           headers: {
-            "Access-Control-Allow-Origin": "*",
+            ...CORS_HEADERS,
             "Cache-Control": "no-store",
           },
         }
@@ -138,7 +133,7 @@ export async function POST(request: Request) {
       {
         status: 400,
         headers: {
-          "Access-Control-Allow-Origin": "*",
+          ...CORS_HEADERS,
           "Cache-Control": "no-store",
         },
       }

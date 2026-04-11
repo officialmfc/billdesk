@@ -1,19 +1,16 @@
 import { NextResponse } from "next/server";
 import { exchangeAuthHandoff } from "@/lib/server/handoff";
 import { captureAuthHubError } from "@/lib/server/logger";
+import { CORS_HEADERS } from "@/lib/server/cors";
 
 type Body = {
   handoffId?: string;
 };
 
 function corsHeaders(request: Request): HeadersInit {
-  const origin = request.headers.get("origin");
   return {
-    "Access-Control-Allow-Origin": origin || "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    ...CORS_HEADERS,
     "Cache-Control": "no-store",
-    Vary: "Origin",
   };
 }
 
