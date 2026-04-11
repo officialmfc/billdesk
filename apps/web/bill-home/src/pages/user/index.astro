@@ -1,42 +1,207 @@
 ---
+import { logoSources } from "../../lib/site";
 import PortalLayout from "../../layouts/PortalLayout.astro";
+
+const appSections = [
+  {
+    title: "Bills",
+    label: "Today",
+    description: "Daily totals, due amount, and the active bill sheet.",
+  },
+  {
+    title: "History",
+    label: "Timeline",
+    description: "Bills and payments in one simple history view.",
+  },
+  {
+    title: "Seller",
+    label: "Optional",
+    description: "Seller access stays hidden until you enable it.",
+  },
+  {
+    title: "Settings",
+    label: "Profile",
+    description: "Update name, business details, password, and preferences.",
+  },
+];
 ---
 
 <PortalLayout
   title="User - Bill Home"
-  description="User hub with a single mobile route."
+  description="User browser page that mirrors the app entry and core sections."
   tone="user"
 >
   <section class="hero">
     <div class="hero-main">
-      <h2>User</h2>
-      <p class="lead">User is the default entry. Open mobile and then Android.</p>
-      <div class="hero-actions">
-        <a class="button primary" href="/user/mobile">Open mobile</a>
-        <a class="button secondary" href="https://auth.mondalfishcenter.com/login?app=user&platform=mobile">Open browser</a>
-        <a class="button ghost" href="/">Home</a>
+      <div class="user-login">
+        <div class="user-login-head">
+          <img class="user-logo" src={logoSources[0]} alt="MFC logo" loading="eager" />
+          <div class="user-copy">
+            <p class="eyebrow">MFC Apps</p>
+            <h2>User</h2>
+            <p class="lead">
+              Browser entry for the user app. Sign in once, then continue in the mobile app.
+            </p>
+          </div>
+        </div>
+
+        <div class="hero-actions">
+          <a class="button primary" href="https://auth.mondalfishcenter.com/login?app=user&platform=mobile">
+            Continue to secure sign in
+          </a>
+          <a class="button secondary" href="https://auth.mondalfishcenter.com/forgot-password?app=user&platform=mobile">
+            Reset password
+          </a>
+          <a class="button ghost" href="/user/mobile">
+            Open mobile
+          </a>
+        </div>
       </div>
     </div>
   </section>
 
   <section class="section">
     <div class="section-heading">
-      <h3>Links</h3>
-      <p>Keep it simple: browser, mobile, Android.</p>
+      <div class="tag"><span class="dot"></span>User app</div>
+      <h3>Same sections as the app</h3>
+      <p>Bills, history, seller, and settings stay in the same order as the mobile app.</p>
+    </div>
+
+    <div class="feature-grid">
+      {appSections.map((section) => (
+        <article class="panel feature-card">
+          <div class="feature-head">
+            <span class="feature-chip">{section.label}</span>
+            <strong>{section.title}</strong>
+          </div>
+          <p>{section.description}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <div class="tag"><span class="dot"></span>Mobile</div>
+      <h3>Open the app version</h3>
+      <p>The mobile app remains the primary experience. Use this page as the browser entry point.</p>
     </div>
     <div class="page-stack">
-      <a class="page-link" href="https://auth.mondalfishcenter.com/login?app=user&platform=mobile">
-        <strong>Browser</strong>
-        <span>Open user login</span>
-      </a>
       <a class="page-link" href="/user/mobile">
-        <strong>Mobile</strong>
-        <span>Open user mobile</span>
+        <strong>Mobile page</strong>
+        <span>Android now, iOS later</span>
       </a>
       <a class="page-link" href="/user/mobile/android">
         <strong>Android</strong>
-        <span>Open Android page</span>
+        <span>Current build path</span>
+      </a>
+      <a class="page-link" href="/user/mobile/ios">
+        <strong>iPhone / iPad</strong>
+        <span>Later build path</span>
       </a>
     </div>
   </section>
+
+  <style>
+    .user-login {
+      display: grid;
+      gap: 18px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, #ffffff 100%);
+      box-shadow: var(--shadow);
+    }
+
+    .user-login-head {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .user-logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 8px;
+      object-fit: contain;
+      flex: 0 0 auto;
+    }
+
+    .user-copy {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .user-copy h2 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.9rem);
+      line-height: 0.98;
+      letter-spacing: -0.06em;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .feature-card {
+      gap: 10px;
+      box-shadow: none;
+      background: #ffffff;
+    }
+
+    .feature-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .feature-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+      color: var(--muted-strong);
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .feature-card strong {
+      font-size: 1rem;
+      letter-spacing: -0.03em;
+    }
+
+    .feature-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 720px) {
+      .user-login {
+        padding: 18px;
+      }
+
+      .user-login-head {
+        align-items: flex-start;
+      }
+
+      .user-logo {
+        width: 60px;
+        height: 60px;
+      }
+    }
+  </style>
 </PortalLayout>
