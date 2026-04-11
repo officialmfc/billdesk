@@ -25,6 +25,9 @@ type Destination = {
 const MANAGER_WEB_URL =
   process.env.NEXT_PUBLIC_MANAGER_WEB_URL?.trim() ||
   "https://manager.bill.mondalfishcenter.com";
+const USER_WEB_URL =
+  process.env.NEXT_PUBLIC_USER_WEB_URL?.trim() ||
+  "https://user.bill.mondalfishcenter.com";
 
 const DESTINATIONS: Record<AppSlug, Partial<Record<Platform, Destination>>> = {
   manager: {
@@ -48,6 +51,10 @@ const DESTINATIONS: Record<AppSlug, Partial<Record<Platform, Destination>>> = {
     },
   },
   user: {
+    web: {
+      label: "User Web",
+      value: `${USER_WEB_URL.replace(/\/+$/, "")}/auth/callback/`,
+    },
     mobile: {
       label: "User Mobile",
       value: "mfcuser://oauth-callback",

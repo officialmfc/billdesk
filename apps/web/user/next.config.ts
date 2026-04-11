@@ -69,19 +69,16 @@ const nextConfig: NextConfig = {
         )
       ) || inferSupabaseUrlFromAnonKey(publicAnonKey),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: publicAnonKey,
-    NEXT_PUBLIC_MANAGER_WEB_URL:
-      firstDefined(process.env.NEXT_PUBLIC_MANAGER_WEB_URL) ||
-      "https://manager.bill.mondalfishcenter.com",
+    NEXT_PUBLIC_AUTH_BASE_URL:
+      firstDefined(process.env.NEXT_PUBLIC_AUTH_BASE_URL) ||
+      "https://auth.mondalfishcenter.com",
     NEXT_PUBLIC_USER_WEB_URL:
       firstDefined(process.env.NEXT_PUBLIC_USER_WEB_URL) ||
       "https://user.bill.mondalfishcenter.com",
-    NEXT_PUBLIC_AUTH_BASE_URL:
-      firstDefined(process.env.NEXT_PUBLIC_AUTH_BASE_URL) ||
-      "https://auth.mondalfishcenter.com"
   },
   images: {
-    unoptimized: true
-  }
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
