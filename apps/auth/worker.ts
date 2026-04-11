@@ -38,9 +38,16 @@ import {
 } from "@/lib/server/device-leases";
 import {
   ensureControlPlaneSchema,
+  getAuthAccountDirectoryRowsByEmail,
   getAuthAccountDirectoryRowsByAuthUserId,
+  listAuthRateLimitEntries,
+  resetAuthRateLimitEntries,
 } from "@/lib/server/auth-control-plane";
 import { ensureAuthFlowSchema, resolveAuthFlowInput } from "@/lib/server/flows";
+import {
+  canUseCloudflareAccessAdmin,
+  getCloudflareAccessEmail,
+} from "@/lib/server/cloudflare-access";
 import {
   policyPreflightAuthGate,
   policySendSupabaseAuthEmail,
@@ -93,6 +100,103 @@ function textResponse(text: string, status = 200): Response {
       "Content-Type": "text/plain; charset=utf-8",
     },
   });
+}
+
+function isAdminApiPath(pathname: string): boolean {
+  return pathname === "/admin/api" || pathname.startsWith("/admin/api/");
+}
+
+function normalizeAdminLookupApp(app: string | null | undefined): AppSlug | null {
+  const normalized = app?.trim() || "";
+  if (normalized === "manager" || normalized === "admin" || normalized === "user") {
+    return normalized;
+  }
+
+  return null;
+}
+
+async function requireAdminAccess(request: Request, env: WorkerEnv): Promise<string | null> {
+  if (!canUseCloudflareAccessAdmin(request, env)) {
+    throw new Error("Cloudflare Access authentication is required.");
+  }
+
+  return getCloudflareAccessEmail(request);
+}
+
+function uniqueAccountValues(
+  accounts: Array<{
+    email: string;
+    last_login_device_id: string | null;
+    last_login_ip: string | null;
+  }>,
+  devices: Array<{ device_id: string }>
+): string[] {
+  const values = new Set<string>();
+
+  for (const account of accounts) {
+    if (account.email.trim()) {
+      values.add(account.email.trim().toLowerCase());
+    }
+
+    if (typeof account.last_login_device_id === "string" && account.last_login_device_id.trim()) {
+      values.add(account.last_login_device_id.trim().toLowerCase());
+    }
+
+    if (typeof account.last_login_ip === "string" && account.last_login_ip.trim()) {
+      values.add(account.last_login_ip.trim().toLowerCase());
+    }
+  }
+
+  for (const device of devices) {
+    if (device.device_id.trim()) {
+      values.add(device.device_id.trim().toLowerCase());
+    }
+  }
+
+  return [...values];
+}
+
+async function loadAdminAccountState(params: {
+  app?: AppSlug | null;
+  email: string;
+}): Promise<{
+  accounts: Awaited<ReturnType<typeof getAuthAccountDirectoryRowsByEmail>>;
+  devices: Awaited<ReturnType<typeof listActiveDeviceLeases>>;
+  rateLimits: Awaited<ReturnType<typeof listAuthRateLimitEntries>>;
+  relatedValues: string[];
+}> {
+  const accounts = await getAuthAccountDirectoryRowsByEmail({
+    app: params.app ?? null,
+    email: params.email,
+  });
+  const authUserIds = [
+    ...new Set(
+      accounts
+        .map((account) => account.auth_user_id)
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    ),
+  ];
+  const devices = (
+    await Promise.all(authUserIds.map(async (authUserId) => await listActiveDeviceLeases(authUserId)))
+  ).flat();
+  const relatedValues = uniqueAccountValues(
+    accounts.map((account) => ({
+      email: account.email,
+      last_login_device_id: account.last_login_device_id,
+      last_login_ip: account.last_login_ip,
+    })),
+    devices
+  );
+  const rateLimits = await listAuthRateLimitEntries({
+    values: relatedValues,
+  });
+
+  return {
+    accounts,
+    devices,
+    rateLimits,
+    relatedValues,
+  };
 }
 
 function escapeHtml(value: string): string {
@@ -1125,6 +1229,223 @@ async function handleAccountMe(request: Request): Promise<Response> {
   }
 }
 
+async function handleAdminAccountSearch(request: Request, env: WorkerEnv): Promise<Response> {
+  try {
+    const accessEmail = await requireAdminAccess(request, env);
+    const url = new URL(request.url);
+    const email = url.searchParams.get("email")?.trim() || "";
+    const app = normalizeAdminLookupApp(url.searchParams.get("app"));
+
+    if (!email) {
+      throw new Error("Email is required.");
+    }
+
+    const { accounts, devices, rateLimits, relatedValues } = await loadAdminAccountState({
+      app,
+      email,
+    });
+
+    return json({
+      ok: true,
+      access_email: accessEmail,
+      query: {
+        app,
+        email,
+      },
+      accounts,
+      devices,
+      rate_limits: rateLimits,
+      related_values: relatedValues,
+    });
+  } catch (error) {
+    await captureAuthHubError(error, { route: "GET /admin/api/account" }).catch(() => undefined);
+    return json(
+      { error: error instanceof Error ? error.message : "Could not load account." },
+      400
+    );
+  }
+}
+
+async function handleAdminRevokeDevice(request: Request, env: WorkerEnv): Promise<Response> {
+  try {
+    await requireAdminAccess(request, env);
+    const body = (await readJsonBody<{
+      app?: AppSlug | null;
+      deviceId?: string;
+      email?: string;
+    }>(request)) as {
+      app?: AppSlug | null;
+      deviceId?: string;
+      email?: string;
+    };
+    const email = body.email?.trim() || "";
+    const deviceId = body.deviceId?.trim() || "";
+    const app = normalizeAdminLookupApp(body.app || undefined);
+
+    if (!email) {
+      throw new Error("Email is required.");
+    }
+
+    if (!deviceId) {
+      throw new Error("Device id is required.");
+    }
+
+    const { accounts } = await loadAdminAccountState({
+      app,
+      email,
+    });
+    const authUserIds = [
+      ...new Set(
+        accounts
+          .map((account) => account.auth_user_id)
+          .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      ),
+    ];
+
+    let revoked = null;
+    for (const authUserId of authUserIds) {
+      revoked = await revokeDeviceLease({
+        authUserId,
+        deviceId,
+      });
+
+      if (revoked) {
+        break;
+      }
+    }
+
+    return json({ ok: true, revoked });
+  } catch (error) {
+    await captureAuthHubError(error, { route: "POST /admin/api/devices/revoke" }).catch(() => undefined);
+    return json(
+      { error: error instanceof Error ? error.message : "Could not revoke device." },
+      400
+    );
+  }
+}
+
+async function handleAdminRevokeAllDevices(request: Request, env: WorkerEnv): Promise<Response> {
+  try {
+    await requireAdminAccess(request, env);
+    const body = (await readJsonBody<{
+      app?: AppSlug | null;
+      email?: string;
+    }>(request)) as {
+      app?: AppSlug | null;
+      email?: string;
+    };
+    const email = body.email?.trim() || "";
+    const app = normalizeAdminLookupApp(body.app || undefined);
+
+    if (!email) {
+      throw new Error("Email is required.");
+    }
+
+    const { accounts } = await loadAdminAccountState({
+      app,
+      email,
+    });
+    const authUserIds = [
+      ...new Set(
+        accounts
+          .map((account) => account.auth_user_id)
+          .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      ),
+    ];
+
+    const revoked = (
+      await Promise.all(
+        authUserIds.map(async (authUserId) => ({
+          authUserId,
+          devices: await revokeAllDeviceLeases(authUserId),
+        }))
+      )
+    ).flatMap((entry) => entry.devices);
+
+    return json({ ok: true, revoked });
+  } catch (error) {
+    await captureAuthHubError(error, { route: "POST /admin/api/devices/revoke-all" }).catch(() => undefined);
+    return json(
+      { error: error instanceof Error ? error.message : "Could not revoke devices." },
+      400
+    );
+  }
+}
+
+async function handleAdminRateLimits(request: Request, env: WorkerEnv): Promise<Response> {
+  try {
+    await requireAdminAccess(request, env);
+    const url = new URL(request.url);
+    const email = url.searchParams.get("email")?.trim() || "";
+    const app = normalizeAdminLookupApp(url.searchParams.get("app"));
+
+    if (!email) {
+      throw new Error("Email is required.");
+    }
+
+    const { accounts, devices, rateLimits, relatedValues } = await loadAdminAccountState({
+      app,
+      email,
+    });
+
+    return json({
+      ok: true,
+      accounts,
+      devices,
+      rate_limits: rateLimits,
+      query: { app, email },
+      related_values: relatedValues,
+    });
+  } catch (error) {
+    await captureAuthHubError(error, { route: "GET /admin/api/rate-limits" }).catch(() => undefined);
+    return json(
+      { error: error instanceof Error ? error.message : "Could not load rate limits." },
+      400
+    );
+  }
+}
+
+async function handleAdminRateLimitReset(request: Request, env: WorkerEnv): Promise<Response> {
+  try {
+    await requireAdminAccess(request, env);
+    const body = (await readJsonBody<{
+      app?: AppSlug | null;
+      email?: string;
+    }>(request)) as {
+      app?: AppSlug | null;
+      email?: string;
+    };
+    const email = body.email?.trim() || "";
+    const app = normalizeAdminLookupApp(body.app || undefined);
+
+    if (!email) {
+      throw new Error("Email is required.");
+    }
+
+    const { accounts, devices, relatedValues } = await loadAdminAccountState({
+      app,
+      email,
+    });
+    const resetCount = await resetAuthRateLimitEntries({
+      values: relatedValues,
+    });
+
+    return json({
+      ok: true,
+      accounts,
+      devices,
+      reset_count: resetCount,
+      related_values: relatedValues,
+    });
+  } catch (error) {
+    await captureAuthHubError(error, { route: "POST /admin/api/rate-limits/reset" }).catch(() => undefined);
+    return json(
+      { error: error instanceof Error ? error.message : "Could not reset rate limits." },
+      400
+    );
+  }
+}
+
 async function handleAuthExchange(request: Request): Promise<Response> {
   try {
     const body = (await readJsonBody<{
@@ -1525,15 +1846,16 @@ async function handleSupabaseSendEmail(request: Request, env: WorkerEnv): Promis
   }
 }
 
-async function routePage(env: WorkerEnv, url: URL): Promise<Response> {
-  return routeSharedAuthPage(env, url);
+async function routePage(env: WorkerEnv, url: URL, request: Request): Promise<Response> {
+  return routeSharedAuthPage(env, url, request);
 }
 
 function shouldServeAsset(pathname: string): boolean {
   return (
     pathname.startsWith("/icons/") ||
     pathname.startsWith("/logo/") ||
-    pathname === "/auth-client.js"
+    pathname === "/auth-client.js" ||
+    pathname === "/admin-client.js"
   );
 }
 
@@ -1552,6 +1874,28 @@ const worker = {
 
       if (pathname === "/api/health") {
         return await handleHealth(env);
+      }
+
+      if (isAdminApiPath(pathname)) {
+        if (pathname === "/admin/api/account" && request.method === "GET") {
+          return await handleAdminAccountSearch(request, env);
+        }
+
+        if (pathname === "/admin/api/devices/revoke" && request.method === "POST") {
+          return await handleAdminRevokeDevice(request, env);
+        }
+
+        if (pathname === "/admin/api/devices/revoke-all" && request.method === "POST") {
+          return await handleAdminRevokeAllDevices(request, env);
+        }
+
+        if (pathname === "/admin/api/rate-limits" && request.method === "GET") {
+          return await handleAdminRateLimits(request, env);
+        }
+
+        if (pathname === "/admin/api/rate-limits/reset" && request.method === "POST") {
+          return await handleAdminRateLimitReset(request, env);
+        }
       }
 
       if (pathname === "/api/auth/preflight" && request.method === "POST") {
@@ -1629,7 +1973,7 @@ const worker = {
       }
 
       if (request.method === "GET") {
-        return await routePage(env, url);
+        return await routePage(env, url, request);
       }
 
       return textResponse("Not found", 404);

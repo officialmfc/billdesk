@@ -10,6 +10,17 @@ type D1PreparedStatementLike = {
 
 type KVNamespaceLike = {
   get: (key: string, options?: { type?: "json" | "text" }) => Promise<unknown>;
+  list?: (options?: {
+    cursor?: string;
+    limit?: number;
+    prefix?: string;
+  }) => Promise<{
+    cursor?: string;
+    keys?: Array<{
+      name: string;
+    }>;
+    list_complete?: boolean;
+  }>;
   put: (key: string, value: string, options?: { expirationTtl?: number }) => Promise<void>;
   delete?: (key: string) => Promise<void>;
 };

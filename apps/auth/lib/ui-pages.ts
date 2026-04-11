@@ -8,6 +8,10 @@ import {
 } from "@/lib/config";
 import type { AuthHubCloudflareEnv } from "@/lib/server/cloudflare";
 import {
+  canUseCloudflareAccessAdmin,
+  getCloudflareAccessEmail,
+} from "@/lib/server/cloudflare-access";
+import {
   createAuthFlow,
   getAuthFlow,
   type AuthFlowAction,
@@ -23,6 +27,7 @@ export type AuthPageName =
   | "callback"
   | "handoff"
   | "account"
+  | "admin"
   | "unauthorized";
 
 function escapeHtml(value: string): string {
@@ -56,6 +61,8 @@ function getPublicConfig(
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || env.SUPABASE_ANON_KEY?.trim() || "";
   const sentryDsn =
     env.NEXT_PUBLIC_SENTRY_DSN?.trim() || env.SENTRY_DSN?.trim() || "";
+  const accessEmail =
+    typeof extras.accessEmail === "string" ? extras.accessEmail.trim().toLowerCase() : "";
   const turnstileSiteKey = captchaEnabled
     ? env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || env.TURNSTILE_SITE_KEY?.trim() || ""
     : "";
@@ -72,6 +79,7 @@ function getPublicConfig(
     supabaseAnonKey,
     supabaseUrl,
     turnstileSiteKey,
+    accessEmail,
     ...extras,
   };
 }
@@ -84,6 +92,8 @@ function pageShell(params: {
   subtitle?: string;
   title: string;
   extras?: Record<string, unknown>;
+  scriptSrc?: string;
+  wide?: boolean;
 }): string {
   const publicConfig = JSON.stringify(
     getPublicConfig(params.env, params.page, params.context, params.extras)
@@ -112,6 +122,11 @@ function pageShell(params: {
         place-items: center;
         padding: 24px;
       }
+      .page--wide {
+        place-items: start center;
+        padding-top: 32px;
+        padding-bottom: 40px;
+      }
       .card {
         width: min(100%, 460px);
         background: rgba(255,255,255,0.96);
@@ -119,6 +134,9 @@ function pageShell(params: {
         border-radius: 28px;
         box-shadow: 0 20px 80px rgba(15, 23, 42, 0.08);
         padding: 28px;
+      }
+      .card--wide {
+        width: min(100%, 980px);
       }
       .brand {
         display: flex;
@@ -338,11 +356,133 @@ function pageShell(params: {
         margin-bottom: 14px;
         color: #334155;
       }
+      .admin-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-start;
+        margin-bottom: 22px;
+      }
+      .admin-hero .subtitle {
+        max-width: 56ch;
+      }
+      .admin-identity {
+        display: grid;
+        gap: 6px;
+        justify-items: end;
+        text-align: right;
+      }
+      .admin-identity strong {
+        font-size: 14px;
+        color: #0f172a;
+      }
+      .admin-identity small {
+        color: #64748b;
+        line-height: 1.5;
+      }
+      .admin-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .admin-actions {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .admin-summary {
+        margin-top: 16px;
+        padding: 16px;
+        border-radius: 20px;
+        border: 1px solid #dbe2ee;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      }
+      .admin-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 16px;
+      }
+      .admin-section {
+        border: 1px solid #dbe2ee;
+        border-radius: 20px;
+        padding: 16px;
+        background: #fff;
+      }
+      .admin-section h2 {
+        margin: 0 0 12px;
+        font-size: 18px;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+      }
+      .admin-list {
+        display: grid;
+        gap: 10px;
+      }
+      .admin-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 12px;
+        background: #f8fafc;
+      }
+      .admin-item strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .admin-item small,
+      .admin-item p {
+        margin: 0;
+        color: #64748b;
+        line-height: 1.5;
+      }
+      .admin-item-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .button.ghost {
+        color: #0f172a;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #1d4ed8;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .chip[data-tone="success"] {
+        background: #ecfdf5;
+        color: #047857;
+      }
+      .chip[data-tone="warning"] {
+        background: #fff7ed;
+        color: #c2410c;
+      }
+      @media (max-width: 860px) {
+        .admin-hero {
+          flex-direction: column;
+        }
+        .admin-identity {
+          justify-items: start;
+          text-align: left;
+        }
+        .admin-toolbar,
+        .admin-actions,
+        .admin-grid {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body data-page="${escapeHtml(params.page)}">
-    <main class="page">
-      <section class="card">
+    <main class="page${params.wide ? " page--wide" : ""}">
+      <section class="card${params.wide ? " card--wide" : ""}">
         <div class="brand">
           <img src="/logo/mfclogo.svg" alt="MFC" />
           <div>
@@ -355,7 +495,7 @@ function pageShell(params: {
         <script>
           window.__AUTH_HUB__ = ${publicConfig};
         </script>
-        <script type="module" src="/auth-client.js"></script>
+        ${params.scriptSrc === "" ? "" : `<script type="module" src="${escapeHtml(params.scriptSrc || "/auth-client.js")}"></script>`}
       </section>
     </main>
   </body>
@@ -749,6 +889,98 @@ function renderAccountPage(
   );
 }
 
+function renderAdminDeniedPage(env: AuthHubCloudflareEnv): Response {
+  return html(
+    pageShell({
+      env,
+      page: "admin",
+      context: null,
+      title: "Auth admin",
+      subtitle: "Cloudflare Access is required to open this page.",
+      body: `
+        <p class="top-note">This control surface is only available after Cloudflare Access login.</p>
+        <div class="actions">
+          <a class="button" href="/login?app=manager&platform=web">Back to login</a>
+        </div>
+      `,
+      scriptSrc: "",
+      wide: false,
+    }),
+    403
+  );
+}
+
+function renderAdminPage(
+  env: AuthHubCloudflareEnv,
+  accessEmail: string | null
+): Response {
+  return html(
+    pageShell({
+      env,
+      page: "admin",
+      context: null,
+      extras: {
+        accessEmail: accessEmail || "",
+      },
+      title: "Auth admin",
+      subtitle: "Find an account, revoke devices, and clear rate limits.",
+      body: `
+        <div class="admin-hero">
+          <div>
+            <div class="chip" data-tone="success">Cloudflare Access</div>
+            <p class="top-note">Search a user by email and app, then manage active devices or rate limits.</p>
+          </div>
+          <div class="admin-identity">
+            <small>Signed in as</small>
+            <strong data-admin-access-email>${escapeHtml(accessEmail || "Authenticated administrator")}</strong>
+          </div>
+        </div>
+        <form id="admin-form">
+          <div class="admin-toolbar">
+            <div class="field">
+              <label for="admin-email">Email</label>
+              <input id="admin-email" name="email" type="email" autocomplete="email" required />
+            </div>
+            <div class="field">
+              <label for="admin-app">App</label>
+              <select id="admin-app" name="app">
+                <option value="">All apps</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+                <option value="user">User</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions admin-actions">
+            <button class="button" type="submit">Search account</button>
+            <button class="button secondary" type="button" data-admin-revoke-all disabled>Revoke all devices</button>
+            <button class="button ghost" type="button" data-admin-reset-rate-limits disabled>Reset rate limits</button>
+          </div>
+          <div class="admin-summary" data-admin-summary>
+            <p class="small">Search by email to load account rows, devices, and rate-limit entries.</p>
+          </div>
+          <div class="admin-grid">
+            <section class="admin-section">
+              <h2>Accounts</h2>
+              <div class="admin-list" data-admin-accounts></div>
+            </section>
+            <section class="admin-section">
+              <h2>Devices</h2>
+              <div class="admin-list" data-admin-devices></div>
+            </section>
+            <section class="admin-section">
+              <h2>Rate limits</h2>
+              <div class="admin-list" data-admin-rate-limits></div>
+            </section>
+          </div>
+        </form>
+      `,
+      scriptSrc: "/admin-client.js",
+      wide: true,
+    })
+  );
+}
+
 function normalizePath(pathname: string): string {
   return pathname.replace(/\/+$/, "") || "/";
 }
@@ -804,7 +1036,8 @@ async function resolvePageFlow(params: {
 
 export async function routeAuthPage(
   env: AuthHubCloudflareEnv,
-  url: URL
+  url: URL,
+  request: Request
 ): Promise<Response> {
   const existingFlowId = url.searchParams.get("flow")?.trim() || "";
   const existingFlow = existingFlowId ? await getAuthFlow(existingFlowId) : null;
@@ -822,6 +1055,14 @@ export async function routeAuthPage(
   const deviceConfig = getDeviceConfigFromUrl(url);
   const emailSeed = url.searchParams.get("email")?.trim() || null;
   const inviteToken = url.searchParams.get("invite")?.trim() || null;
+
+  if (page === "/admin") {
+    if (!canUseCloudflareAccessAdmin(request, env)) {
+      return renderAdminDeniedPage(env);
+    }
+
+    return renderAdminPage(env, getCloudflareAccessEmail(request));
+  }
 
   if (!context && page !== "/" && page !== "/account" && page !== "/unauthorized") {
     return renderUnauthorizedPage(env, null);

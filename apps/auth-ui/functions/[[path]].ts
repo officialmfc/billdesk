@@ -59,6 +59,10 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   const pathname = normalizePath(url.pathname);
 
   try {
+    if (pathname === "/admin/api" || pathname.startsWith("/admin/api/")) {
+      return proxyToService(env.AUTH_CORE, request, pathname);
+    }
+
     if (pathname.startsWith("/api/")) {
       if (
         pathname === "/api/auth/preflight" ||
@@ -75,7 +79,7 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
     }
 
     if (request.method === "GET") {
-      return routeAuthPage(env, url);
+      return routeAuthPage(env, url, request);
     }
 
     return new Response("Not found", { status: 404 });

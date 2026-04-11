@@ -45,6 +45,17 @@ export type AuthDirectoryAccessContext = {
   user_id: string | null;
 };
 
+export type AuthRateLimitEntry = {
+  action: AuthGateAction;
+  count: number;
+  expiresAt: string | null;
+  firstSeenAt: string | null;
+  key: string;
+  lastSeenAt: string | null;
+  scope: "device" | "email" | "ip";
+  value: string;
+};
+
 type RateLimitRule = {
   limit: number;
   windowSeconds: number;
@@ -162,6 +173,10 @@ function normalizeMetadata(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function normalizeRateLimitValue(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 function getRateLimitKeyParts(params: {
   action: AuthGateAction;
   deviceId?: string | null;
@@ -188,12 +203,58 @@ function buildRateLimitKey(action: string, scope: string, value: string): string
   return `auth-gate:${action}:${scope}:${value.toLowerCase()}`;
 }
 
+function isAuthGateAction(value: string): value is AuthGateAction {
+  return value in RATE_LIMIT_RULES;
+}
+
+function parseRateLimitKey(key: string): {
+  action: AuthGateAction;
+  scope: "device" | "email" | "ip";
+  value: string;
+} | null {
+  const parts = key.split(":");
+  if (parts.length < 5 || parts[0] !== "auth-gate") {
+    return null;
+  }
+
+  const action = parts[1] || "";
+  const scopeAction = parts[2] || "";
+  const scope = parts[3] || "";
+  const value = parts.slice(4).join(":");
+
+  if (!isAuthGateAction(action) || scopeAction !== action) {
+    return null;
+  }
+
+  if (scope !== "email" && scope !== "ip" && scope !== "device") {
+    return null;
+  }
+
+  return {
+    action,
+    scope,
+    value,
+  };
+}
+
 async function getRateLimitStore() {
   const env = await getAuthHubEnv();
   return (env.auth_rate_limit_kv ?? env.AUTH_RATE_LIMIT_KV ?? null) as
     | {
         get: (key: string, options?: { type?: "json" | "text" }) => Promise<unknown>;
+        list?: (options?: {
+          cursor?: string;
+          limit?: number;
+          prefix?: string;
+        }) => Promise<{
+          cursor?: string;
+          keys?: Array<{
+            name: string;
+          }>;
+          list_complete?: boolean;
+        }>;
         put: (key: string, value: string, options?: { expirationTtl?: number }) => Promise<void>;
+        delete?: (key: string) => Promise<void>;
       }
     | null;
 }
@@ -398,6 +459,54 @@ export async function getAuthAccountDirectoryRowsByAuthUserId(
   return result.results ?? [];
 }
 
+export async function getAuthAccountDirectoryRowsByEmail(params: {
+  app?: AppSlug | null;
+  email: string;
+}): Promise<AuthAccountReadModelRow[]> {
+  await ensureControlPlaneSchema();
+  const env = await getAuthHubEnv();
+  const email = normalizeEmail(params.email);
+  const values: Array<string | null> = [email];
+  const where = ["email = ?"];
+
+  if (params.app) {
+    where.push("app = ?");
+    values.push(params.app);
+  }
+
+  const result = await env.auth_d1_binding
+    .prepare(
+      `
+        SELECT
+          id,
+          auth_user_id,
+          blocked_at,
+          blocked_reason,
+          business_name,
+          created_at,
+          email,
+          full_name,
+          last_login_at,
+          last_login_device_id,
+          last_login_ip,
+          metadata_json,
+          platform,
+          role,
+          source,
+          status,
+          updated_at,
+          app
+        FROM auth_account_directory
+        WHERE ${where.join(" AND ")}
+        ORDER BY updated_at DESC
+      `
+    )
+    .bind(...values)
+    .all<AuthAccountReadModelRow>();
+
+  return result.results ?? [];
+}
+
 export function deriveAuthDirectoryAccessContext(
   rows: AuthAccountReadModelRow[]
 ): AuthDirectoryAccessContext {
@@ -517,7 +626,126 @@ export async function upsertAuthAccountDirectory(params: {
       params.status === "active" ? normalizeOptionalText(params.ipAddress) : null,
       params.status === "active" ? normalizeOptionalText(params.deviceId) : null
     )
-    .run();
+      .run();
+}
+
+async function listRateLimitKeys(prefix: string): Promise<Array<{ name: string }>> {
+  const store = await getRateLimitStore();
+  if (!store?.list) {
+    return [];
+  }
+
+  const keys: Array<{ name: string }> = [];
+  let cursor: string | undefined;
+
+  do {
+    const page = await store.list({ prefix, cursor, limit: 1000 });
+    const nextKeys = Array.isArray(page?.keys) ? page.keys : [];
+
+    for (const key of nextKeys) {
+      if (key?.name) {
+        keys.push({ name: key.name });
+      }
+    }
+
+    cursor =
+      page && typeof page.cursor === "string" && page.cursor.trim() && page.list_complete !== true
+        ? page.cursor
+        : undefined;
+  } while (cursor);
+
+  return keys;
+}
+
+export async function listAuthRateLimitEntries(params: {
+  action?: AuthGateAction | null;
+  values?: Array<string | null | undefined>;
+} = {}): Promise<AuthRateLimitEntry[]> {
+  const store = await getRateLimitStore();
+  if (!store) {
+    return [];
+  }
+
+  const normalizedValues = new Set(
+    (params.values ?? [])
+      .map((value) => (typeof value === "string" ? normalizeRateLimitValue(value) : ""))
+      .filter((value) => Boolean(value))
+  );
+  const prefix = params.action ? `auth-gate:${params.action}:${params.action}:` : "auth-gate:";
+  const entries: AuthRateLimitEntry[] = [];
+
+  for (const keyEntry of await listRateLimitKeys(prefix)) {
+    const parsed = parseRateLimitKey(keyEntry.name);
+    if (!parsed) {
+      continue;
+    }
+
+    if (params.action && parsed.action !== params.action) {
+      continue;
+    }
+
+    if (normalizedValues.size > 0 && !normalizedValues.has(normalizeRateLimitValue(parsed.value))) {
+      continue;
+    }
+
+    const current = await store.get(keyEntry.name, { type: "json" });
+    const state =
+      current && typeof current === "object"
+        ? (current as {
+            count?: number;
+            expiresAt?: string;
+            firstSeenAt?: string;
+            lastSeenAt?: string;
+          })
+        : {};
+
+    entries.push({
+      action: parsed.action,
+      count: typeof state.count === "number" ? state.count : 0,
+      expiresAt: typeof state.expiresAt === "string" ? state.expiresAt : null,
+      firstSeenAt: typeof state.firstSeenAt === "string" ? state.firstSeenAt : null,
+      key: keyEntry.name,
+      lastSeenAt: typeof state.lastSeenAt === "string" ? state.lastSeenAt : null,
+      scope: parsed.scope,
+      value: parsed.value,
+    });
+  }
+
+  return entries.sort((left, right) => {
+    const leftTime = new Date(left.lastSeenAt || left.firstSeenAt || 0).getTime();
+    const rightTime = new Date(right.lastSeenAt || right.firstSeenAt || 0).getTime();
+    return rightTime - leftTime;
+  });
+}
+
+export async function resetAuthRateLimitEntries(params: {
+  action?: AuthGateAction | null;
+  values?: Array<string | null | undefined>;
+} = {}): Promise<number> {
+  const store = await getRateLimitStore();
+  if (!store?.delete) {
+    return 0;
+  }
+
+  const values = (params.values ?? []).filter((value): value is string => {
+    return typeof value === "string" && value.trim().length > 0;
+  });
+
+  if (!params.action && values.length === 0) {
+    throw new Error("A rate limit filter is required.");
+  }
+
+  const entries = await listAuthRateLimitEntries({
+    action: params.action ?? null,
+    values,
+  });
+  const uniqueKeys = [...new Set(entries.map((entry) => entry.key))];
+
+  for (const key of uniqueKeys) {
+    await store.delete(key);
+  }
+
+  return uniqueKeys.length;
 }
 
 export async function markAuthAccountLogin(params: {
