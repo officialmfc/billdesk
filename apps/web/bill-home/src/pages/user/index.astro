@@ -1,0 +1,42 @@
+---
+import PortalLayout from "../../layouts/PortalLayout.astro";
+---
+
+<PortalLayout
+  title="User - Bill Home"
+  description="User hub with a single mobile route."
+  tone="user"
+>
+  <section class="hero">
+    <div class="hero-main">
+      <h2>User</h2>
+      <p class="lead">User is the default entry. Open mobile and then Android.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="/user/mobile">Open mobile</a>
+        <a class="button secondary" href="https://auth.mondalfishcenter.com/login?app=user&platform=mobile">Open browser</a>
+        <a class="button ghost" href="/">Home</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <h3>Links</h3>
+      <p>Keep it simple: browser, mobile, Android.</p>
+    </div>
+    <div class="page-stack">
+      <a class="page-link" href="https://auth.mondalfishcenter.com/login?app=user&platform=mobile">
+        <strong>Browser</strong>
+        <span>Open user login</span>
+      </a>
+      <a class="page-link" href="/user/mobile">
+        <strong>Mobile</strong>
+        <span>Open user mobile</span>
+      </a>
+      <a class="page-link" href="/user/mobile/android">
+        <strong>Android</strong>
+        <span>Open Android page</span>
+      </a>
+    </div>
+  </section>
+</PortalLayout>

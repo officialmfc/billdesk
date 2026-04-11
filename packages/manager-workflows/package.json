@@ -1,0 +1,16 @@
+{
+  "name": "@mfc/manager-workflows",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mfc/manager-ui": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

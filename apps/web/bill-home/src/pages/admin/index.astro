@@ -1,0 +1,42 @@
+---
+import PortalLayout from "../../layouts/PortalLayout.astro";
+---
+
+<PortalLayout
+  title="Admin - Bill Home"
+  description="Admin hub with a single mobile route."
+  tone="admin"
+>
+  <section class="hero">
+    <div class="hero-main">
+      <h2>Admin</h2>
+      <p class="lead">Admin is mobile-first. Open mobile, then Android.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="/admin/mobile">Open mobile</a>
+        <a class="button secondary" href="https://auth.mondalfishcenter.com/login?app=admin&platform=mobile">Open browser</a>
+        <a class="button ghost" href="/">Home</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <h3>Links</h3>
+      <p>Browser, mobile, and device pages.</p>
+    </div>
+    <div class="page-stack">
+      <a class="page-link" href="https://auth.mondalfishcenter.com/login?app=admin&platform=mobile">
+        <strong>Browser</strong>
+        <span>Open admin login</span>
+      </a>
+      <a class="page-link" href="/admin/mobile">
+        <strong>Mobile</strong>
+        <span>Android now, iOS later</span>
+      </a>
+      <a class="page-link" href="/admin/mobile/android">
+        <strong>Android</strong>
+        <span>Open Android page</span>
+      </a>
+    </div>
+  </section>
+</PortalLayout>

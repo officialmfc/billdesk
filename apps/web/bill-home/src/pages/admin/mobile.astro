@@ -1,0 +1,60 @@
+---
+import { appCatalog } from "../../lib/site";
+import PortalLayout from "../../layouts/PortalLayout.astro";
+import ReleaseCard from "../../components/ReleaseCard.astro";
+
+const adminPlatforms = appCatalog.admin.platforms;
+---
+
+<PortalLayout
+  title="Admin Mobile - Bill Home"
+  description="Admin mobile release page with live registry data, website link, and latest download."
+  tone="admin"
+>
+  <section class="hero mobile-hero">
+    <div class="hero-main">
+      <div class="tag"><span class="dot"></span>Admin / Mobile</div>
+      <h2>Admin Mobile</h2>
+      <p class="lead">Android and iOS builds for approvals, account checks, and day-to-day operations.</p>
+      <div class="mobile-strip" aria-label="Admin mobile overview">
+        <span>Phone-first</span>
+        <span>Approvals</span>
+        <span>Account checks</span>
+      </div>
+      <div class="hero-actions">
+        <a class="button primary" href="/releases">Open releases</a>
+        <a class="button secondary" href="https://auth.mondalfishcenter.com/login?app=admin&platform=mobile">Open website</a>
+        <a class="button ghost" href="/">Home</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <div class="tag"><span class="dot"></span>Builds</div>
+      <h3>Android and iOS</h3>
+      <p>Pick the platform card you want and download the latest build from R2.</p>
+    </div>
+    <div class="platform-grid">
+      {adminPlatforms.map((platform) => <ReleaseCard app="admin" platform={platform.key} summary compact />)}
+    </div>
+  </section>
+
+  <style>
+    .mobile-hero .mobile-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .mobile-hero .mobile-strip span {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+      color: var(--text);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+  </style>
+</PortalLayout>

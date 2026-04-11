@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "997371398416",
+    "project_id": "mfc-billdesk",
+    "storage_bucket": "mfc-billdesk.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:997371398416:android:5187d1a53d2a16982efd95",
+        "android_client_info": {
+          "package_name": "com.mfc.user"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCvB0PwfDGWK_hKUd0JrIlMFLT1U1wAa4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

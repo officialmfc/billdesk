@@ -1,0 +1,87 @@
+name: Auth Cloudflare Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/auth-cloudflare-deploy.yml"
+      - "apps/auth/**"
+      - "apps/auth-ui/**"
+      - "apps/auth-policy/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Auth Stack
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.GHA_CLOUDFLARE_API_TOKEN || vars.GHA_CLOUDFLARE_API_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Detect changed auth targets
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            shared:
+              - ".github/workflows/auth-cloudflare-deploy.yml"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
+            auth_core:
+              - "apps/auth/**"
+            auth_policy:
+              - "apps/auth-policy/**"
+            auth_ui:
+              - "apps/auth-ui/**"
+
+      - name: Type-check auth-core
+        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true'
+        run: pnpm --dir apps/auth type-check
+
+      - name: Type-check auth-policy
+        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true' || steps.changes.outputs.auth_policy == 'true'
+        run: pnpm --dir apps/auth-policy type-check
+
+      - name: Type-check auth-ui
+        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true' || steps.changes.outputs.auth_ui == 'true'
+        run: pnpm --dir apps/auth-ui type-check
+
+      - name: Apply auth D1 migrations
+        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true'
+        run: printf 'y\n' | pnpm --dir apps/auth exec wrangler d1 migrations apply auth_d1_binding --remote --config wrangler.jsonc
+
+      - name: Deploy auth-policy Worker
+        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true' || steps.changes.outputs.auth_policy == 'true'
+        run: pnpm --dir apps/auth-policy exec wrangler deploy --config wrangler.jsonc --keep-vars
+
+      - name: Deploy auth-core Worker
+        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true'
+        run: pnpm --dir apps/auth exec wrangler deploy --config wrangler.jsonc --keep-vars
+
+      - name: Deploy auth-ui Pages
+        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.shared == 'true' || steps.changes.outputs.auth_core == 'true' || steps.changes.outputs.auth_ui == 'true'
+        run: pnpm --dir apps/auth-ui exec wrangler pages deploy public --project-name auth --branch main --commit-dirty=true

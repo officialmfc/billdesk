@@ -1,0 +1,96 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "out/**"],
+      "env": [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_MANAGER_WEB_URL",
+        "NEXT_PUBLIC_AUTH_BASE_URL",
+        "NEXT_PUBLIC_BUSINESS_NAME",
+        "NEXT_PUBLIC_BUSINESS_ADDRESS",
+        "NEXT_PUBLIC_BUSINESS_PHONE",
+        "NEXT_PUBLIC_BUSINESS_EMAIL",
+        "NEXT_PUBLIC_BUSINESS_GST",
+        "NEXT_PUBLIC_SENTRY_DSN",
+        "NEXT_PUBLIC_SENTRY_ENVIRONMENT",
+        "NEXT_PUBLIC_ENABLE_SENTRY",
+        "SENTRY_DSN",
+        "SENTRY_TRACES_SAMPLE_RATE",
+        "EXPO_PUBLIC_BUSINESS_NAME",
+        "EXPO_PUBLIC_BUSINESS_ADDRESS",
+        "EXPO_PUBLIC_BUSINESS_PHONE",
+        "EXPO_PUBLIC_BUSINESS_EMAIL",
+        "EXPO_PUBLIC_BUSINESS_GST",
+        "EXPO_PUBLIC_SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY",
+        "EXPO_PUBLIC_POWERSYNC_URL",
+        "EXPO_EAS_PROJECT_ID_MANAGER",
+        "EXPO_EAS_PROJECT_ID_ADMIN",
+        "EXPO_EAS_PROJECT_ID_USER",
+        "EXPO_TOKEN",
+        "EXPO_ACCESS_TOKEN",
+        "CLOUDFLARE_R2_ACCESS_KEY_ID",
+        "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
+        "CLOUDFLARE_R2_BUCKET",
+        "CLOUDFLARE_R2_ENDPOINT",
+        "MANAGER_OAUTH_REDIRECT_URL"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "type-check": {
+      "outputs": []
+    },
+    "clean": {
+      "cache": false
+    },
+    "start": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "env": [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_MANAGER_WEB_URL",
+        "NEXT_PUBLIC_AUTH_BASE_URL",
+        "NEXT_PUBLIC_BUSINESS_NAME",
+        "NEXT_PUBLIC_BUSINESS_ADDRESS",
+        "NEXT_PUBLIC_BUSINESS_PHONE",
+        "NEXT_PUBLIC_BUSINESS_EMAIL",
+        "NEXT_PUBLIC_BUSINESS_GST",
+        "NEXT_PUBLIC_SENTRY_DSN",
+        "NEXT_PUBLIC_SENTRY_ENVIRONMENT",
+        "NEXT_PUBLIC_ENABLE_SENTRY",
+        "SENTRY_DSN",
+        "SENTRY_TRACES_SAMPLE_RATE",
+        "EXPO_PUBLIC_BUSINESS_NAME",
+        "EXPO_PUBLIC_BUSINESS_ADDRESS",
+        "EXPO_PUBLIC_BUSINESS_PHONE",
+        "EXPO_PUBLIC_BUSINESS_EMAIL",
+        "EXPO_PUBLIC_BUSINESS_GST",
+        "EXPO_PUBLIC_SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY",
+        "EXPO_PUBLIC_POWERSYNC_URL",
+        "EXPO_EAS_PROJECT_ID_MANAGER",
+        "EXPO_EAS_PROJECT_ID_ADMIN",
+        "EXPO_EAS_PROJECT_ID_USER",
+        "EXPO_TOKEN",
+        "EXPO_ACCESS_TOKEN",
+        "CLOUDFLARE_R2_ACCESS_KEY_ID",
+        "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
+        "CLOUDFLARE_R2_BUCKET",
+        "CLOUDFLARE_R2_ENDPOINT",
+        "MANAGER_OAUTH_REDIRECT_URL"
+      ]
+    }
+  }
+}

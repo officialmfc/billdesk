@@ -1,0 +1,42 @@
+{
+  "name": "@mfc/desktop-manager",
+  "version": "0.1.0",
+  "private": true,
+  "main": "out/main/index.js",
+  "scripts": {
+    "ensure:electron": "node scripts/ensure-electron.mjs",
+    "dev": "pnpm ensure:electron && pnpm rebuild:native && electron-vite dev",
+    "build": "electron-vite build",
+    "package": "pnpm rebuild:native && pnpm build && pnpm exec electron-builder --config electron-builder.yml --publish never",
+    "postinstall": "electron-builder install-app-deps",
+    "preview": "electron-vite preview",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mfc/auth": "workspace:*",
+    "@mfc/manager-ui": "workspace:*",
+    "@mfc/manager-workflows": "workspace:*",
+    "@mfc/manager-sync-model": "workspace:*",
+    "@mfc/utils": "workspace:*",
+    "@powersync/node": "^0.18.2",
+    "@supabase/supabase-js": "2.80.0",
+    "better-sqlite3": "^12.4.1",
+    "dotenv": "^17.2.3",
+    "lucide-react": "^0.546.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.1",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.3",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.0",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^4.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.11"
+  }
+}

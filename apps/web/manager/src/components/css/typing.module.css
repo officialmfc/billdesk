@@ -1,0 +1,764 @@
+/* BoyIcon.module.css */
+.icon {
+    /* Keep icon flow-friendly: relative so it sits inside layout */
+    position: relative;
+    width: 250px;
+    height: 250px;
+    display: block;
+    margin: 0 auto;
+}
+
+.bg {
+    position: absolute;
+    top: 20%;
+    left: 30%;
+    transform: scale(2);
+    filter: drop-shadow(2px 4px 0px #f0f5ff);
+}
+
+.boy {
+    height: 100%;
+    width: 100%;
+    position: relative;
+    filter: drop-shadow(5px 3px 0px rgba(0, 0, 0, 0.1));
+}
+
+.boyShirt {
+    /* Renamed from boy-shirt */
+    width: 215px;
+    position: absolute;
+    height: 150px;
+    bottom: 3px;
+    background: #b8d3ff;
+    left: 50%;
+    transform: translate(-50%, 0);
+    border-radius: 50px 50px 0 0;
+}
+
+/* Removed .boy-badge styles as it was commented out */
+
+.boyFace {
+    /* Renamed */
+    transform: scale3d(3.5, 3.5, 3.5);
+    position: absolute;
+    top: 130px;
+    left: 135px;
+    filter: drop-shadow(0px 2px 0px #a0bff2);
+}
+
+.boyHair {
+    /* Renamed */
+    z-index: 5;
+    transform: scale3d(3.8, 3.8, 3.8);
+    position: absolute;
+    top: 140px;
+    left: 143px;
+}
+
+.boyHairLick1,
+/* Renamed */
+.boyHairLick2 {
+    /* Renamed */
+    position: absolute;
+}
+
+.boyHairLick1 {
+    /* Renamed */
+    transform: scale3d(1.5, 1.5, 1.5) rotate(10deg);
+    left: 130px;
+    top: -30px;
+}
+
+.boyHairLick2 {
+    /* Renamed */
+    transform: rotate(-10deg);
+    left: 120px;
+    top: -40px;
+}
+
+.boyHairShadow {
+    /* Renamed */
+    transform: scale(3.8);
+    position: absolute;
+    top: 144px;
+    left: 146px;
+}
+
+.boyMouth {
+    /* Renamed */
+    height: 3px;
+    width: 20px;
+    background: #222;
+    position: absolute;
+    left: 50%;
+    top: 130px;
+    transform: translate(-50%, 0);
+    border-radius: 3px;
+}
+
+.boyEyes {
+    /* Renamed */
+    height: 15px;
+    width: 100px;
+    position: absolute;
+    z-index: 2;
+    left: 75px;
+    top: 85px;
+}
+
+.leftEye,
+/* Renamed */
+.rightEye {
+    /* Renamed */
+    width: 15px;
+    height: 15px;
+    background: #000;
+    position: absolute;
+    border-radius: 50%;
+}
+
+.leftEye {
+    /* Renamed */
+    left: 0;
+}
+
+.rightEye {
+    /* Renamed */
+    right: 0;
+}
+
+.boyBrows {
+    /* Renamed */
+    height: 15px;
+    width: 100px;
+    position: absolute;
+    z-index: 2;
+    left: 75px;
+    top: 65px;
+}
+
+.leftBrow,
+/* Renamed */
+.rightBrow {
+    /* Renamed */
+    width: 30px;
+    height: 10px;
+    background: #111;
+    position: absolute;
+    top: 5px;
+    border-radius: 3px;
+    animation-duration: 5s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+
+.leftBrow {
+    /* Renamed */
+    left: 0;
+    transform: rotate(0);
+    animation-name: leftBrowAnimation;
+    /* Renamed animation */
+}
+
+.rightBrow {
+    /* Renamed */
+    right: 0;
+    transform: rotate(0);
+    animation-name: rightBrowAnimation;
+    /* Renamed animation */
+}
+
+@keyframes leftBrowAnimation {
+
+    /* Renamed */
+    10% {
+        transform: rotate(0);
+    }
+
+    15% {
+        transform: rotate(25deg);
+    }
+
+    60% {
+        transform: rotate(25deg);
+    }
+
+    65% {
+        transform: rotate(0);
+    }
+}
+
+@keyframes rightBrowAnimation {
+
+    /* Renamed */
+    10% {
+        transform: rotate(0);
+    }
+
+    15% {
+        transform: rotate(-25deg);
+    }
+
+    60% {
+        transform: rotate(-25deg);
+    }
+
+    65% {
+        transform: rotate(0);
+    }
+}
+
+.boyEars {
+    /* Renamed */
+    width: 170px;
+    height: 30px;
+    position: absolute;
+    top: 85px;
+    left: 40px;
+}
+
+.leftEar,
+/* Renamed */
+.rightEar {
+    /* Renamed */
+    height: 30px;
+    width: 20px;
+    background: #f2daa0;
+    position: absolute;
+}
+
+.leftEar {
+    /* Renamed */
+    left: 0;
+    border-radius: 50% 0 50% 50%;
+}
+
+.rightEar {
+    /* Renamed */
+    right: 2px;
+    border-radius: 0 50% 50% 50%;
+}
+
+.palmLeft,
+/* Renamed */
+.palmRight {
+    /* Renamed */
+    position: absolute;
+    bottom: 20px;
+    width: 70px;
+    height: 50px;
+    border-radius: 10px 10px 50% 50%;
+    background: #c7ac6d;
+}
+
+.palmLeft {
+    /* Renamed */
+    left: 0;
+}
+
+.palmRight {
+    /* Renamed */
+    right: 0;
+}
+
+.ul {
+    /* Targeting ul */
+    padding: 0;
+    position: absolute;
+    bottom: 73px;
+    list-style-type: none;
+}
+
+.fingersLeft {
+    /* Renamed */
+    composes: ul;
+    /* Inherit base ul styles */
+    left: 0;
+}
+
+.fingersRight {
+    /* Renamed */
+    composes: ul;
+    /* Inherit base ul styles */
+    right: 0;
+}
+
+.li {
+    /* Targeting li */
+    display: inline;
+    position: absolute;
+    width: 15px;
+    height: 35px;
+    background: #f2daa0;
+    border-radius: 15px;
+    border: 1px solid #f2daa0;
+    border-top: 2px solid #fff4d9;
+    animation-duration: 2s;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+    top: 10px;
+    overflow: hidden;
+}
+
+.li::after {
+    /* Targeting li::after */
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    right: 2px;
+    left: 2px;
+    height: 8px;
+    background: #ffeab8;
+    border-radius: 0 0 50% 50%;
+    border-top: 1px solid #e8cd8b;
+}
+
+.li:nth-child(5)::after {
+    /* Targeting li:nth-child(5)::after */
+    display: none;
+}
+
+.fingersLeft li:nth-child(1) {
+    /* Renamed */
+    width: 10px;
+    height: 30px;
+    top: 15px;
+    animation-name: lFin1Animation;
+    /* Renamed */
+}
+
+.fingersLeft li:nth-child(2) {
+    /* Renamed */
+    left: 14px;
+    animation-name: lFin2Animation;
+    /* Renamed */
+}
+
+.fingersLeft li:nth-child(3) {
+    /* Renamed */
+    left: 33px;
+    animation-name: lFin3Animation;
+    /* Renamed */
+}
+
+.fingersLeft li:nth-child(4) {
+    /* Renamed */
+    left: 52px;
+    animation-name: lFin4Animation;
+    /* Renamed */
+}
+
+.fingersLeft li:nth-child(5) {
+    /* Renamed */
+    left: 73px;
+    height: 15px;
+    top: 30px;
+    animation-name: lFin5Animation;
+    /* Renamed */
+}
+
+.fingersRight li:nth-child(1) {
+    /* Renamed */
+    width: 10px;
+    height: 30px;
+    top: 15px;
+    right: 0;
+    animation-name: rFin1Animation;
+    /* Renamed */
+}
+
+.fingersRight li:nth-child(2) {
+    /* Renamed */
+    right: 14px;
+    animation-name: rFin2Animation;
+    /* Renamed */
+}
+
+.fingersRight li:nth-child(3) {
+    /* Renamed */
+    right: 33px;
+    animation-name: rFin3Animation;
+    /* Renamed */
+}
+
+.fingersRight li:nth-child(4) {
+    /* Renamed */
+    right: 52px;
+    animation-name: rFin4Animation;
+    /* Renamed */
+}
+
+.fingersRight li:nth-child(5) {
+    /* Renamed */
+    right: 73px;
+    height: 15px;
+    top: 30px;
+    animation-name: rFin5Animation;
+    /* Renamed */
+}
+
+.keyboard {
+    height: 30px;
+    left: -5px;
+    right: -5px;
+    background: #222;
+    position: absolute;
+    bottom: -2px;
+    border-radius: 5px;
+    border-bottom: 3px solid #111;
+}
+
+.keyboard .key {
+    position: absolute;
+    top: -5px;
+    height: 10px;
+    width: 15px;
+    background: #222;
+    border-radius: 3px;
+    animation-duration: 2s;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+    border-top: 2px solid #333;
+}
+
+.keyboard .key:first-child {
+    animation-name: key1Animation;
+    /* Renamed */
+    left: 3px;
+}
+
+.keyboard .key:nth-child(2) {
+    animation-name: key2Animation;
+    /* Renamed */
+    left: 21px;
+}
+
+.keyboard .key:nth-child(3) {
+    animation-name: key3Animation;
+    /* Renamed */
+    left: 40px;
+}
+
+.keyboard .key:nth-child(4) {
+    animation-name: key4Animation;
+    /* Renamed */
+    left: 59px;
+}
+
+.keyboard .key:nth-child(5) {
+    animation-name: key5Animation;
+    /* Renamed */
+    left: 80px;
+    width: 100px;
+}
+
+.keyboard .key:nth-child(6) {
+    right: 59px;
+    animation-name: key6Animation;
+    /* Renamed */
+}
+
+.keyboard .key:nth-child(7) {
+    animation-name: key7Animation;
+    /* Renamed */
+    right: 40px;
+}
+
+.keyboard .key:nth-child(8) {
+    animation-name: key8Animation;
+    /* Renamed */
+    right: 21px;
+}
+
+.keyboard .key:nth-child(9) {
+    animation-name: key9Animation;
+    /* Renamed */
+    right: 3px;
+}
+
+/* Removed animations for keys 10-13 as they weren't used */
+
+/* Renamed ALL animation keyframes */
+@keyframes rFin3Animation {
+    4% {
+        top: 10px;
+    }
+
+    5% {
+        top: 15px;
+    }
+
+    10% {
+        top: 10px;
+    }
+}
+
+@keyframes key7Animation {
+    7% {
+        top: -5px;
+    }
+
+    8% {
+        top: -1px;
+    }
+
+    13% {
+        top: -5px;
+    }
+}
+
+@keyframes lFin2Animation {
+    9% {
+        top: 10px;
+    }
+
+    10% {
+        top: 15px;
+    }
+
+    15% {
+        top: 10px;
+    }
+}
+
+@keyframes key2Animation {
+    12% {
+        top: -5px;
+    }
+
+    13% {
+        top: -1px;
+    }
+
+    17% {
+        top: -5px;
+    }
+}
+
+@keyframes rFin2Animation {
+    14% {
+        top: 10px;
+    }
+
+    15% {
+        top: 15px;
+    }
+
+    20% {
+        top: 10px;
+    }
+}
+
+@keyframes key8Animation {
+    17% {
+        top: -5px;
+    }
+
+    18% {
+        top: -1px;
+    }
+
+    22% {
+        top: -5px;
+    }
+}
+
+@keyframes lFin3Animation {
+    19% {
+        top: 10px;
+    }
+
+    20% {
+        top: 15px;
+    }
+
+    25% {
+        top: 10px;
+    }
+}
+
+@keyframes key3Animation {
+    22% {
+        top: -5px;
+    }
+
+    23% {
+        top: -1px;
+    }
+
+    27% {
+        top: -5px;
+    }
+}
+
+@keyframes rFin5Animation {
+    24% {
+        top: 30px;
+    }
+
+    25% {
+        top: 40px;
+    }
+
+    30% {
+        top: 30px;
+    }
+}
+
+@keyframes key5Animation {
+    27% {
+        top: -5px;
+        transform: rotate(0);
+    }
+
+    28% {
+        top: -2px;
+        transform: rotate(3deg);
+    }
+
+    32% {
+        top: -5px;
+        transform: rotate(0);
+    }
+
+    42% {
+        top: -5px;
+        transform: rotate(0);
+    }
+
+    43% {
+        top: -2px;
+        transform: rotate(-3deg);
+    }
+
+    47% {
+        top: -5px;
+        transform: rotate(0);
+    }
+}
+
+@keyframes lFin4Animation {
+    29% {
+        top: 10px;
+    }
+
+    30% {
+        top: 15px;
+    }
+
+    35% {
+        top: 10px;
+    }
+}
+
+@keyframes key4Animation {
+    32% {
+        top: -5px;
+    }
+
+    33% {
+        top: -1px;
+    }
+
+    37% {
+        top: -5px;
+    }
+}
+
+@keyframes rFin4Animation {
+    34% {
+        top: 10px;
+    }
+
+    35% {
+        top: 15px;
+    }
+
+    40% {
+        top: 10px;
+    }
+}
+
+@keyframes key6Animation {
+    37% {
+        top: -5px;
+    }
+
+    38% {
+        top: -1px;
+    }
+
+    42% {
+        top: -5px;
+    }
+}
+
+@keyframes lFin5Animation {
+    39% {
+        top: 30px;
+    }
+
+    40% {
+        top: 40px;
+    }
+
+    45% {
+        top: 30px;
+    }
+}
+
+@keyframes rFin1Animation {
+    44% {
+        top: 15px;
+    }
+
+    45% {
+        top: 20px;
+    }
+
+    50% {
+        top: 15px;
+    }
+}
+
+@keyframes key9Animation {
+    47% {
+        top: -5px;
+    }
+
+    48% {
+        top: -1px;
+    }
+
+    52% {
+        top: -5px;
+    }
+}
+
+@keyframes lFin1Animation {
+    49% {
+        top: 15px;
+    }
+
+    50% {
+        top: 20px;
+    }
+
+    55% {
+        top: 15px;
+    }
+}
+
+@keyframes key1Animation {
+    52% {
+        top: -5px;
+    }
+
+    53% {
+        top: -1px;
+    }
+
+    57% {
+        top: -5px;
+    }
+}

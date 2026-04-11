@@ -1,0 +1,58 @@
+---
+import { appCatalog } from "../lib/site";
+import PortalLayout from "../layouts/PortalLayout.astro";
+import ReleaseCard from "../components/ReleaseCard.astro";
+
+const releaseGroups = [
+  {
+    key: "manager",
+    title: "Manager",
+    description: "Desktop builds for macOS and Windows.",
+    platforms: appCatalog.manager.platforms,
+  },
+  {
+    key: "admin",
+    title: "Admin",
+    description: "Mobile builds for Android and iPhone / iPad.",
+    platforms: appCatalog.admin.platforms,
+  },
+  {
+    key: "user",
+    title: "User",
+    description: "Mobile builds for Android and iPhone / iPad.",
+    platforms: appCatalog.user.platforms,
+  },
+];
+---
+
+<PortalLayout
+  title="Releases - Bill Home"
+  description="Registry view for the latest MFC release entries pulled from R2."
+  tone="releases"
+>
+  <section class="hero">
+    <div class="hero-main">
+      <h2>Latest releases</h2>
+      <p class="lead">Live registry data from R2.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="/">Back home</a>
+        <a class="button ghost" href="/manager">Manager</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-label="Published release cards">
+    {releaseGroups.map((group) => (
+      <div class="detail">
+        <div class="section-heading">
+          <h3>{group.title} builds</h3>
+          <p>{group.description}</p>
+        </div>
+
+        <div class="platform-grid">
+          {group.platforms.map((platform) => <ReleaseCard app={group.key as "manager" | "admin" | "user"} platform={platform.key} compact />)}
+        </div>
+      </div>
+    ))}
+  </section>
+</PortalLayout>

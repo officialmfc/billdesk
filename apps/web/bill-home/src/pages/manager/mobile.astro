@@ -1,0 +1,92 @@
+---
+import PortalLayout from "../../layouts/PortalLayout.astro";
+import ReleaseCard from "../../components/ReleaseCard.astro";
+
+const managerMobilePlatforms = [
+  {
+    key: "android",
+    title: "Manager Android",
+    platformLabel: "Android",
+    description: "Mobile build for Android phones and tablets.",
+    downloadLabel: "Download Android",
+    website: "https://auth.mondalfishcenter.com/login?app=manager&platform=mobile",
+    route: "/manager/mobile",
+  },
+  {
+    key: "ios",
+    title: "Manager iPhone / iPad",
+    platformLabel: "iPhone / iPad",
+    description: "iOS build for later release on Apple devices.",
+    downloadLabel: "Download iOS",
+    website: "https://auth.mondalfishcenter.com/login?app=manager&platform=mobile",
+    route: "/manager/mobile",
+  },
+] as const;
+---
+
+<PortalLayout
+  title="Manager Mobile - Bill Home"
+  description="Manager mobile release page with Android now and iOS later."
+  tone="manager-mobile"
+>
+  <section class="hero mobile-hero">
+    <div class="hero-main">
+      <div class="tag"><span class="dot"></span>Manager / Mobile</div>
+      <h2>Manager Mobile</h2>
+      <p class="lead">Android now, iOS later. Clean mobile access for manager workflows.</p>
+      <div class="mobile-strip" aria-label="Manager mobile overview">
+        <span>Android now</span>
+        <span>iOS later</span>
+        <span>Manager login</span>
+      </div>
+      <div class="hero-actions">
+        <a class="button primary" href="/releases">Open releases</a>
+        <a class="button secondary" href="https://auth.mondalfishcenter.com/login?app=manager&platform=mobile">Open website</a>
+        <a class="button ghost" href="/">Home</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <div class="tag"><span class="dot"></span>Builds</div>
+      <h3>Android now, iOS later</h3>
+      <p>Open the website and keep the install page simple: Android now, iOS later.</p>
+    </div>
+    <div class="platform-grid">
+      {managerMobilePlatforms.map((platform) => (
+        <ReleaseCard
+          app="manager"
+          platform={platform.key}
+          title={platform.title}
+          platformLabel={platform.platformLabel}
+          description={platform.description}
+          website={platform.website}
+          route={platform.route}
+          downloadLabel={platform.downloadLabel}
+          device="mobile"
+          summary
+          compact
+        />
+      ))}
+    </div>
+  </section>
+
+  <style>
+    .mobile-hero .mobile-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .mobile-hero .mobile-strip span {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+      color: var(--text);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+  </style>
+</PortalLayout>

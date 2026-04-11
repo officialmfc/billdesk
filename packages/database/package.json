@@ -1,0 +1,29 @@
+{
+  "name": "@mfc/database",
+  "version": "2.0.0",
+  "private": true,
+  "description": "IndexedDB schema and type definitions for MFC BillDesk - Schema only, no business logic",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "indexeddb",
+    "dexie",
+    "schema",
+    "types",
+    "offline-first"
+  ],
+  "dependencies": {
+    "@mfc/types": "workspace:*",
+    "dexie": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "^5.7.3"
+  }
+}

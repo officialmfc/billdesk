@@ -1,0 +1,304 @@
+name: Mobile Apps Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+    paths:
+      - "apps/mobile/manager/**"
+      - "apps/mobile/admin/**"
+      - "apps/mobile/user/**"
+      - "packages/**"
+      - "powersync/**"
+      - ".github/workflows/mobile-eas-build.yml"
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Which mobile app to build"
+        required: true
+        default: "manager"
+        type: choice
+        options:
+          - manager
+          - admin
+          - user
+          - all
+      platform:
+        description: "Which platform to build"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - android
+          - all
+      profile:
+        description: "EAS build profile"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - preview
+          - production
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      release_prefix: ${{ steps.matrix.outputs.release_prefix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build matrix
+        id: matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          APP_INPUT: ${{ github.event.inputs.app }}
+          PLATFORM_INPUT: ${{ github.event.inputs.platform }}
+          PROFILE_INPUT: ${{ github.event.inputs.profile }}
+        run: |
+          node <<'EOF' >> "$GITHUB_OUTPUT"
+          const { execSync } = require("node:child_process");
+          const appInput = process.env.APP_INPUT;
+          const platformInput = process.env.PLATFORM_INPUT;
+          const profileInput = process.env.PROFILE_INPUT;
+          const eventName = process.env.EVENT_NAME;
+          const refType = process.env.REF_TYPE;
+
+          const defaultProfile = eventName === "push" ? "preview" : profileInput;
+          const defaultPlatforms = ["android"];
+
+          let apps;
+          if (eventName === "push") {
+            const afterSha = process.env.AFTER_SHA;
+            const beforeSha = process.env.BEFORE_SHA;
+            let diffCommand = `git diff --name-only ${beforeSha} ${afterSha}`;
+            if (refType === "tag") {
+              diffCommand = `git diff-tree --no-commit-id --name-only -r ${afterSha}`;
+            } else {
+              try {
+                execSync(`git cat-file -e ${beforeSha}^{commit}`, { stdio: "ignore" });
+              } catch {
+                diffCommand = `git diff-tree --no-commit-id --name-only -r ${afterSha}`;
+              }
+            }
+
+            const diff = execSync(diffCommand, { encoding: "utf8" })
+              .split("\n")
+              .filter(Boolean);
+            const set = new Set();
+            for (const file of diff) {
+              if (file.startsWith("apps/mobile/manager/") || file.startsWith("packages/") || file.startsWith("powersync/")) {
+                set.add("manager");
+              }
+              if (file.startsWith("apps/mobile/admin/") || file.startsWith("packages/") || file.startsWith("powersync/")) {
+                set.add("admin");
+              }
+              if (file.startsWith("apps/mobile/user/") || file.startsWith("packages/") || file.startsWith("powersync/")) {
+                set.add("user");
+              }
+            }
+            apps = Array.from(set);
+          } else {
+            apps = appInput === "all" ? ["manager", "admin", "user"] : [appInput];
+          }
+
+          if (!apps.length) {
+            process.stdout.write(`matrix=${JSON.stringify({ include: [] })}\n`);
+            process.exit(0);
+          }
+
+          const include = [];
+          for (const app of apps) {
+            for (const platform of defaultPlatforms) {
+              include.push({ app, platform, profile: defaultProfile });
+            }
+          }
+
+          process.stdout.write(`matrix=${JSON.stringify({ include })}\n`);
+          process.stdout.write(`release_prefix=${process.env.AFTER_SHA || "manual"}/${defaultProfile}\n`);
+          EOF
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY || secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_POWERSYNC_URL: ${{ vars.EXPO_PUBLIC_POWERSYNC_URL || secrets.EXPO_PUBLIC_POWERSYNC_URL }}
+      ANDROID_KEYSTORE_BASE64: ${{ vars.ANDROID_KEYSTORE_BASE64 || secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ vars.ANDROID_KEYSTORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ vars.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.1
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild native deps
+        run: pnpm rebuild better-sqlite3 sharp electron @sentry/cli esbuild unrs-resolver
+
+      - name: Type check selected mobile app
+        run: pnpm --dir apps/mobile/${{ matrix.app }} exec tsc --noEmit
+
+      - name: Prepare Android release keystore
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || \
+             [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || \
+             [ -z "$ANDROID_KEY_ALIAS" ] || \
+             [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "Missing Android release signing secrets." >&2
+            exit 1
+          fi
+
+          keystore_path="$RUNNER_TEMP/${{ matrix.app }}-release.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          echo "ANDROID_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
+
+      - name: Build Android release locally
+        working-directory: apps/mobile/${{ matrix.app }}/android
+        run: |
+          ./gradlew assembleRelease
+
+      - name: Locate Android artifact
+        id: artifact
+        run: |
+          artifact="$(find apps/mobile/${{ matrix.app }}/android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*arm64-v8a-release.apk' | head -n 1)"
+          if [ -z "$artifact" ]; then
+            artifact="$(find apps/mobile/${{ matrix.app }}/android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          fi
+          if [ -z "$artifact" ]; then
+            echo "No APK found after local Android build" >&2
+            exit 1
+          fi
+          echo "path=$artifact" >> "$GITHUB_OUTPUT"
+
+      - name: Write release manifest
+        id: manifest
+        working-directory: apps/mobile/${{ matrix.app }}
+        run: |
+          mkdir -p release-manifest
+          version="$(node -p 'require("./package.json").version')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          cat > release-manifest/manifest.json <<EOF
+          {
+            "app": "${{ matrix.app }}",
+            "platform": "${{ matrix.platform }}",
+            "profile": "${{ matrix.profile }}",
+            "version": "${version}",
+            "sha": "${{ github.sha }}",
+            "ref": "${{ github.ref_name }}",
+            "run_id": "${{ github.run_id }}",
+            "run_attempt": "${{ github.run_attempt }}",
+            "event_name": "${{ github.event_name }}"
+          }
+          EOF
+
+      - name: Upload release manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-${{ matrix.app }}-${{ matrix.platform }}-${{ github.sha }}
+          path: apps/mobile/${{ matrix.app }}/release-manifest/manifest.json
+          if-no-files-found: error
+
+      - name: Check R2 secrets
+        id: r2
+        env:
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ vars.CLOUDFLARE_R2_ACCESS_KEY_ID || secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ vars.CLOUDFLARE_R2_SECRET_ACCESS_KEY || secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_BUCKET: ${{ vars.CLOUDFLARE_R2_BUCKET || secrets.CLOUDFLARE_R2_BUCKET || 'releases' }}
+          CLOUDFLARE_R2_ENDPOINT: ${{ vars.CLOUDFLARE_R2_ENDPOINT || secrets.CLOUDFLARE_R2_ENDPOINT }}
+        run: |
+          if [ -n "$CLOUDFLARE_R2_ACCESS_KEY_ID" ] && \
+             [ -n "$CLOUDFLARE_R2_SECRET_ACCESS_KEY" ] && \
+             [ -n "$CLOUDFLARE_R2_BUCKET" ] && \
+             [ -n "$CLOUDFLARE_R2_ENDPOINT" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish build manifest to Cloudflare R2
+        if: ${{ steps.r2.outputs.enabled == 'true' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ vars.CLOUDFLARE_R2_ACCESS_KEY_ID || secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ vars.CLOUDFLARE_R2_SECRET_ACCESS_KEY || secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.CLOUDFLARE_R2_BUCKET || secrets.CLOUDFLARE_R2_BUCKET || 'releases' }}
+          R2_ENDPOINT: ${{ vars.CLOUDFLARE_R2_ENDPOINT || secrets.CLOUDFLARE_R2_ENDPOINT }}
+          R2_PUBLIC_BASE_URL: https://releases.mondalfishcenter.com
+          RELEASE_PREFIX: ${{ matrix.app }}/${{ matrix.platform }}/${{ steps.manifest.outputs.version }}
+        run: |
+          aws s3 cp "${{ steps.artifact.outputs.path }}" "s3://${R2_BUCKET}/${RELEASE_PREFIX}/mobile-${{ matrix.app }}-${{ matrix.platform }}-${{ steps.manifest.outputs.version }}-${{ github.sha }}.apk" \
+            --endpoint-url "${R2_ENDPOINT}"
+
+          cat > apps/mobile/${{ matrix.app }}/release-manifest/registry.json <<EOF
+          {
+            "app": "${{ matrix.app }}",
+            "platform": "${{ matrix.platform }}",
+            "version": "${{ steps.manifest.outputs.version }}",
+            "sha": "${{ github.sha }}",
+            "tag": "${{ github.ref_name }}",
+            "release_prefix": "${RELEASE_PREFIX}",
+            "artifact": {
+              "path": "${RELEASE_PREFIX}/mobile-${{ matrix.app }}-${{ matrix.platform }}-${{ steps.manifest.outputs.version }}-${{ github.sha }}.apk",
+              "url": "${R2_PUBLIC_BASE_URL}/${RELEASE_PREFIX}/mobile-${{ matrix.app }}-${{ matrix.platform }}-${{ steps.manifest.outputs.version }}-${{ github.sha }}.apk"
+            }
+          }
+          EOF
+
+          cp apps/mobile/${{ matrix.app }}/release-manifest/registry.json apps/mobile/${{ matrix.app }}/release-manifest/latest.json
+
+          registry_tmp="$(mktemp)"
+          aws s3 cp "s3://${R2_BUCKET}/registry.json" "$registry_tmp" \
+            --endpoint-url "${R2_ENDPOINT}" || true
+          REGISTRY_TMP="$registry_tmp" node <<'EOF'
+          const fs = require('node:fs');
+          const path = process.env.REGISTRY_TMP;
+          const raw = fs.existsSync(path) ? fs.readFileSync(path, 'utf8').trim() : '';
+          const current = raw ? JSON.parse(raw) : {};
+          const entry = JSON.parse(fs.readFileSync('apps/mobile/${{ matrix.app }}/release-manifest/registry.json', 'utf8'));
+          const catalog = current.apps ?? {};
+          const latest = current.latest ?? {};
+          catalog[entry.app] ??= {};
+          catalog[entry.app][entry.platform] ??= {};
+          catalog[entry.app][entry.platform][entry.version] = entry;
+          latest[entry.app] = entry;
+          const next = { latest, apps: catalog };
+          fs.writeFileSync(path, JSON.stringify(next, null, 2));
+          fs.copyFileSync(path, 'apps/mobile/${{ matrix.app }}/release-manifest/registry.json');
+          fs.copyFileSync(path, 'apps/mobile/${{ matrix.app }}/release-manifest/latest.json');
+          EOF
+
+          aws s3 cp apps/mobile/${{ matrix.app }}/release-manifest/registry.json "s3://${R2_BUCKET}/registry.json" \
+            --endpoint-url "${R2_ENDPOINT}"
+          aws s3 cp apps/mobile/${{ matrix.app }}/release-manifest/latest.json "s3://${R2_BUCKET}/latest.json" \
+            --endpoint-url "${R2_ENDPOINT}"

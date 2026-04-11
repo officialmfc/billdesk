@@ -1,0 +1,42 @@
+---
+import PortalLayout from "../../layouts/PortalLayout.astro";
+---
+
+<PortalLayout
+  title="Manager - Bill Home"
+  description="Manager hub with desktop and mobile routes."
+  tone="manager"
+>
+  <section class="hero">
+    <div class="hero-main">
+      <h2>Manager</h2>
+      <p class="lead">Open desktop or mobile, then choose the device type.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="/manager/desktop">Open desktop</a>
+        <a class="button secondary" href="/manager/mobile">Open mobile</a>
+        <a class="button ghost" href="https://manager.bill.mondalfishcenter.com">Open browser</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <h3>Links</h3>
+      <p>Desktop, mobile, and the device pages.</p>
+    </div>
+    <div class="page-stack">
+      <a class="page-link" href="https://manager.bill.mondalfishcenter.com">
+        <strong>Browser</strong>
+        <span>Open manager website</span>
+      </a>
+      <a class="page-link" href="/manager/desktop">
+        <strong>Desktop</strong>
+        <span>macOS and Windows</span>
+      </a>
+      <a class="page-link" href="/manager/mobile">
+        <strong>Mobile</strong>
+        <span>Android now, iOS later</span>
+      </a>
+    </div>
+  </section>
+</PortalLayout>

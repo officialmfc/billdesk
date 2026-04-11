@@ -1,0 +1,1 @@
+export { handler } from "./apps/auth/handler.mjs";

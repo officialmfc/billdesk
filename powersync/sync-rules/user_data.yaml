@@ -1,0 +1,213 @@
+config:
+  edition: 3
+
+streams:
+  user_data:
+    auto_subscribe: true
+    queries:
+      - |
+          SELECT
+            id::text AS id,
+            auth_user_id::text AS auth_user_id,
+            name,
+            business_name,
+            phone,
+            user_type,
+            default_role,
+            is_active,
+            address,
+            profile_photo_url,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.users
+          WHERE auth_user_id = auth.user_id()
+      - |
+          SELECT
+            id::text AS id,
+            bill_number,
+            customer_id::text AS customer_id,
+            bill_date,
+            total_amount,
+            amount_paid,
+            status,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by,
+            is_migration_bill
+          FROM public.daily_bills
+          WHERE customer_id IN (
+            SELECT id
+            FROM public.users
+            WHERE auth_user_id = auth.user_id()
+          )
+      - |
+          SELECT
+            id::text AS id,
+            daily_bill_id::text AS daily_bill_id,
+            payment_date,
+            amount,
+            payment_method,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.customer_payments
+          WHERE daily_bill_id IN (
+            SELECT id
+            FROM public.daily_bills
+            WHERE customer_id IN (
+              SELECT id
+              FROM public.users
+              WHERE auth_user_id = auth.user_id()
+            )
+          )
+      - |
+          SELECT
+            user_id::text AS id,
+            user_id::text AS user_id,
+            total_billed,
+            total_paid,
+            current_due,
+            updated_at
+          FROM public.customer_balance
+          WHERE user_id IN (
+            SELECT id
+            FROM public.users
+            WHERE auth_user_id = auth.user_id()
+          )
+      - |
+          SELECT
+            id::text AS id,
+            chalan_number,
+            seller_id::text AS seller_id,
+            mfc_seller_id::text AS mfc_seller_id,
+            chalan_date,
+            total_sale_value,
+            commission_rate_percent,
+            commission_amount,
+            net_payable,
+            amount_paid,
+            status,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.chalans
+          WHERE seller_id IN (
+            SELECT id
+            FROM public.users
+            WHERE auth_user_id = auth.user_id()
+          )
+      - |
+          SELECT
+            id::text AS id,
+            chalan_id::text AS chalan_id,
+            payment_date,
+            amount,
+            payment_method,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.seller_payments
+          WHERE chalan_id IN (
+            SELECT id
+            FROM public.chalans
+            WHERE seller_id IN (
+              SELECT id
+              FROM public.users
+              WHERE auth_user_id = auth.user_id()
+            )
+          )
+      - |
+          SELECT
+            user_id::text AS id,
+            user_id::text AS user_id,
+            total_earned,
+            total_paid_out,
+            current_due,
+            updated_at
+          FROM public.seller_balance
+          WHERE user_id IN (
+            SELECT id
+            FROM public.users
+            WHERE auth_user_id = auth.user_id()
+          )
+      - |
+          SELECT
+            id::text AS id,
+            daily_bill_id::text AS daily_bill_id,
+            stock_batch_id::text AS stock_batch_id,
+            chalan_id::text AS chalan_id,
+            product_id::text AS product_id,
+            product_description,
+            weight_kg,
+            price_per_kg,
+            amount,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by,
+            sale_type
+          FROM public.sale_transactions
+          WHERE daily_bill_id IN (
+            SELECT id
+            FROM public.daily_bills
+            WHERE customer_id IN (
+              SELECT id
+              FROM public.users
+              WHERE auth_user_id = auth.user_id()
+            )
+          )
+             OR chalan_id IN (
+            SELECT id
+            FROM public.chalans
+            WHERE seller_id IN (
+              SELECT id
+              FROM public.users
+              WHERE auth_user_id = auth.user_id()
+            )
+          )
+      - |
+          SELECT
+            id::text AS id,
+            quote_number,
+            customer_id::text AS customer_id,
+            assigned_mfc_seller_id::text AS assigned_mfc_seller_id,
+            delivery_date,
+            total_amount,
+            advance_paid,
+            status,
+            notes,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.quotes
+          WHERE customer_id IN (
+            SELECT id
+            FROM public.users
+            WHERE auth_user_id = auth.user_id()
+          )
+      - |
+          SELECT
+            id::text AS id,
+            quote_id::text AS quote_id,
+            product_id::text AS product_id,
+            product_description,
+            weight_kg,
+            price_per_kg,
+            line_total
+          FROM public.quote_items
+          WHERE quote_id IN (
+            SELECT id
+            FROM public.quotes
+            WHERE customer_id IN (
+              SELECT id
+              FROM public.users
+              WHERE auth_user_id = auth.user_id()
+            )
+          )

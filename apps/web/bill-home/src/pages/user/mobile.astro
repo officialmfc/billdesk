@@ -1,0 +1,60 @@
+---
+import { appCatalog } from "../../lib/site";
+import PortalLayout from "../../layouts/PortalLayout.astro";
+import ReleaseCard from "../../components/ReleaseCard.astro";
+
+const userPlatforms = appCatalog.user.platforms;
+---
+
+<PortalLayout
+  title="User Mobile - Bill Home"
+  description="User mobile release page with live registry data, website link, and latest download."
+  tone="user"
+>
+  <section class="hero user-hero">
+    <div class="hero-main">
+      <div class="tag"><span class="dot"></span>User / Mobile</div>
+      <h2>User Mobile</h2>
+      <p class="lead">Android and iOS builds for bills, orders, statements, and notifications.</p>
+      <div class="user-strip" aria-label="User mobile overview">
+        <span>Bills</span>
+        <span>Orders</span>
+        <span>Statements</span>
+      </div>
+      <div class="hero-actions">
+        <a class="button primary" href="/releases">Open releases</a>
+        <a class="button secondary" href="https://auth.mondalfishcenter.com/login?app=user&platform=mobile">Open website</a>
+        <a class="button ghost" href="/">Home</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <div class="tag"><span class="dot"></span>Builds</div>
+      <h3>Android and iPhone / iPad</h3>
+      <p>Pick the platform card you want and download the latest build from R2.</p>
+    </div>
+    <div class="platform-grid">
+      {userPlatforms.map((platform) => <ReleaseCard app="user" platform={platform.key} summary compact />)}
+    </div>
+  </section>
+
+  <style>
+    .user-hero .user-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .user-hero .user-strip span {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+      color: var(--text);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+  </style>
+</PortalLayout>

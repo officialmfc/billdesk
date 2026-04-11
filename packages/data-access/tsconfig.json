@@ -1,0 +1,45 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "composite": true,
+        "declaration": true,
+        "declarationMap": true,
+        "jsx": "react-jsx",
+        "lib": [
+            "ES2020",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "target": "ES2020",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "**/*.test.ts",
+        "**/*.test.tsx"
+    ],
+    "references": [
+        {
+            "path": "../database"
+        },
+        {
+            "path": "../supabase-config"
+        },
+        {
+            "path": "../types"
+        }
+    ]
+}

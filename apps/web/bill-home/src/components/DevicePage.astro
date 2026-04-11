@@ -1,0 +1,105 @@
+---
+import PortalLayout from "../layouts/PortalLayout.astro";
+import ReleaseCard from "./ReleaseCard.astro";
+
+const {
+  title,
+  description,
+  tone,
+  tag,
+  lead,
+  app,
+  platform,
+  device,
+  pageRoute,
+  website,
+  releaseTitle,
+  releaseDescription,
+  downloadLabel,
+  platformLabel,
+  noteChips = [],
+  pageActionLabel = "Back to platform",
+  pageActionHref,
+  releasesHref = "/releases",
+} = Astro.props as {
+  title: string;
+  description: string;
+  tone: "manager" | "manager-mobile" | "admin" | "user";
+  tag: string;
+  lead: string;
+  app: "manager" | "admin" | "user";
+  platform: "android" | "ios" | "macos" | "windows";
+  device: "desktop" | "mobile";
+  pageRoute: string;
+  website: string;
+  releaseTitle: string;
+  releaseDescription: string;
+  downloadLabel: string;
+  platformLabel: string;
+  noteChips?: string[];
+  pageActionLabel?: string;
+  pageActionHref?: string;
+  releasesHref?: string;
+};
+---
+
+<PortalLayout title={title} description={description} tone={tone}>
+  <section class:list={["hero", device === "mobile" ? "mobile-hero" : "desktop-hero"]}>
+    <div class="hero-main">
+      <div class="tag"><span class="dot"></span>{tag}</div>
+      <h2>{title}</h2>
+      <p class="lead">{lead}</p>
+      {noteChips.length > 0 && (
+        <div class="note-strip" aria-label={`${title} overview`}>
+          {noteChips.map((chip) => <span>{chip}</span>)}
+        </div>
+      )}
+      <div class="hero-actions">
+        <a class="button primary" href={pageActionHref || pageRoute}>{pageActionLabel}</a>
+        <a class="button secondary" href={website}>Open website</a>
+        <a class="button ghost" href={releasesHref}>Releases</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <div class="tag"><span class="dot"></span>{platformLabel}</div>
+      <h3>{releaseTitle}</h3>
+      <p>{releaseDescription}</p>
+    </div>
+    <ReleaseCard
+      app={app}
+      platform={platform}
+      title={releaseTitle}
+      description={releaseDescription}
+      website={website}
+      route={pageRoute}
+      platformLabel={platformLabel}
+      downloadLabel={downloadLabel}
+      device={device}
+      summary
+      compact
+    />
+  </section>
+
+  <style>
+    .desktop-hero .note-strip,
+    .mobile-hero .note-strip {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+      color: var(--text);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .desktop-hero .note-strip,
+    .mobile-hero .note-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+  </style>
+</PortalLayout>

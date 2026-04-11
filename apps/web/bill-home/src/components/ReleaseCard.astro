@@ -1,0 +1,90 @@
+---
+import {
+  appCatalog,
+  platformTitle,
+  type AppKey,
+  type PlatformKey,
+} from "../lib/site";
+
+const {
+  app,
+  platform,
+  compact = false,
+  summary = false,
+  title: titleProp,
+  description: descriptionProp,
+  website: websiteProp,
+  route: routeProp,
+  platformLabel: platformLabelProp,
+  downloadLabel: downloadLabelProp,
+  device: deviceProp,
+} = Astro.props as {
+  app: AppKey;
+  platform?: PlatformKey;
+  compact?: boolean;
+  summary?: boolean;
+  title?: string;
+  description?: string;
+  website?: string;
+  route?: string;
+  platformLabel?: string;
+  downloadLabel?: string;
+  device?: "desktop" | "mobile";
+};
+
+const meta = appCatalog[app];
+const platformMeta = platform
+  ? meta.platforms.find((item) => item.key === platform) ?? meta.platforms[0]
+  : null;
+const title = titleProp || (platform ? platformTitle(app, platform) : `${meta.title} ${meta.device === "desktop" ? "Desktop" : "Mobile"}`);
+const defaultWebsiteLabel = new URL(websiteProp || meta.website).host;
+const platformLabel = platformLabelProp || platformMeta?.label || meta.badge;
+const platformDescription = descriptionProp || platformMeta?.description || meta.description;
+const downloadLabel = downloadLabelProp || platformMeta?.artifactLabel || "Download latest";
+const pageRoute = routeProp || meta.route;
+const fallbackWebsite = websiteProp || meta.website;
+const device = deviceProp || meta.device;
+const platformChipLabel = platformLabelProp || platformMeta?.title || meta.badge;
+---
+
+<article
+  class:list={["release-card", compact && "compact", summary && "summary"]}
+  data-release-card
+  data-app={app}
+  data-platform={platform || ""}
+  data-device={device}
+  data-page-route={pageRoute}
+  data-fallback-website={fallbackWebsite}
+  data-card-title={title}
+  data-platform-label={platformLabel}
+  data-download-label={downloadLabel}
+>
+  <div class="card-head">
+    <div class="tag"><span class="dot"></span><span data-release-badge>{platformLabel}</span></div>
+    <span class="platform-chip" data-platform-chip>{platformChipLabel}</span>
+  </div>
+  <h3 data-release-title>{title}</h3>
+  <p>{platformDescription}</p>
+
+  {summary ? (
+    <div class="meta meta-summary">
+      <span><strong>Version</strong> <span data-version-text>Loading…</span></span>
+      <span><strong>Build</strong> <span data-build-text>Waiting for registry…</span></span>
+      <span><strong>Tag</strong> <span data-tag-text>Waiting for registry…</span></span>
+    </div>
+  ) : (
+    <div class="meta">
+      <span><strong>Website</strong> <span data-website-text>{defaultWebsiteLabel}</span></span>
+      <span><strong>Version</strong> <span data-version-text>Loading…</span></span>
+      <span><strong>Build</strong> <span data-build-text>Waiting for registry…</span></span>
+      <span><strong>Tag</strong> <span data-tag-text>Waiting for registry…</span></span>
+      <span><strong>SHA</strong> <span data-sha-text>Waiting for registry…</span></span>
+    </div>
+  )}
+
+  <div class="actions">
+    <a class="button primary" href="#" aria-disabled="true" tabindex="-1" data-download>{downloadLabel}</a>
+    <a class="button secondary" href={fallbackWebsite} data-website>Open website</a>
+    <a class="button ghost" href={pageRoute} data-page-link>Open page</a>
+  </div>
+</article>

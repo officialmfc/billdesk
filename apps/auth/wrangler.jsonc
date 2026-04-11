@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "auth-core",
+  "main": "./worker.ts",
+  "compatibility_date": "2026-04-08",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "auth_d1_binding",
+      "database_name": "auth-hub",
+      "database_id": "7d760378-d3f1-4b13-ac30-6414e20edeec",
+      "migrations_dir": "./d1/migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "AUTH_RATE_LIMIT_KV",
+      "id": "5f947e046d2748b2bea39e589e84a891"
+    }
+  ],
+  "services": [
+    {
+      "binding": "AUTH_POLICY",
+      "service": "auth-policy"
+    }
+  ]
+}

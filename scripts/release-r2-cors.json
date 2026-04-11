@@ -1,0 +1,20 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+          "https://billmfc.vercel.app",
+          "http://127.0.0.1:3000",
+          "http://localhost:3000",
+          "http://127.0.0.1:4173",
+          "http://localhost:4173"
+        ],
+        "methods": [
+          "GET",
+          "HEAD"
+        ]
+      },
+      "max_age_seconds": 3600
+    }
+  ]
+}

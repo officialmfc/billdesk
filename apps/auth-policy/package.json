@@ -1,0 +1,19 @@
+{
+  "name": "@mfc/auth-policy",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --port 3201",
+    "build": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "deploy": "wrangler deploy --config wrangler.jsonc --keep-vars"
+  },
+  "dependencies": {
+    "standardwebhooks": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "^5",
+    "wrangler": "^4.45.0"
+  }
+}

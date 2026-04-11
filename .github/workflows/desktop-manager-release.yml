@@ -1,0 +1,261 @@
+name: Desktop Manager Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+      - "desktop-manager-v*"
+    paths:
+      - "apps/desktop/manager/**"
+      - "apps/web/manager/**"
+      - "packages/**"
+      - "powersync/**"
+      - "supabase/**"
+      - ".github/workflows/desktop-manager-release.yml"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.detect.outputs.should_build }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect relevant changes
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files="$(git diff-tree --no-commit-id --name-only -r "$AFTER_SHA" || true)"
+          if [ -z "$changed_files" ]; then
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if printf '%s\n' "$changed_files" | grep -Eq '^(apps/desktop/manager/|apps/web/manager/|packages/|powersync/|supabase/|\.github/workflows/desktop-manager-release\.yml)'; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-desktop:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.should_build == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-2022]
+
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check R2 secrets
+        id: r2
+        env:
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ vars.CLOUDFLARE_R2_ACCESS_KEY_ID || secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ vars.CLOUDFLARE_R2_SECRET_ACCESS_KEY || secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_BUCKET: ${{ vars.CLOUDFLARE_R2_BUCKET || secrets.CLOUDFLARE_R2_BUCKET }}
+          CLOUDFLARE_R2_ENDPOINT: ${{ vars.CLOUDFLARE_R2_ENDPOINT || secrets.CLOUDFLARE_R2_ENDPOINT }}
+        run: |
+          if [ -n "$CLOUDFLARE_R2_ACCESS_KEY_ID" ] && \
+             [ -n "$CLOUDFLARE_R2_SECRET_ACCESS_KEY" ] && \
+             [ -n "$CLOUDFLARE_R2_BUCKET" ] && \
+             [ -n "$CLOUDFLARE_R2_ENDPOINT" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild desktop native deps
+        run: |
+          pnpm --dir apps/desktop/manager exec electron-builder install-app-deps
+          pnpm rebuild better-sqlite3 sharp electron @sentry/cli esbuild unrs-resolver
+
+      - name: Type check desktop manager
+        run: pnpm --dir apps/desktop/manager type-check
+
+      - name: Prepare desktop runtime env
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY || secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_POWERSYNC_URL: ${{ vars.EXPO_PUBLIC_POWERSYNC_URL || secrets.EXPO_PUBLIC_POWERSYNC_URL }}
+          NEXT_PUBLIC_POWERSYNC_URL: ${{ vars.NEXT_PUBLIC_POWERSYNC_URL || secrets.NEXT_PUBLIC_POWERSYNC_URL }}
+          MANAGER_APP_OAUTH_REDIRECT_URL: ${{ vars.MANAGER_APP_OAUTH_REDIRECT_URL || secrets.MANAGER_APP_OAUTH_REDIRECT_URL }}
+          NEXT_PUBLIC_MANAGER_APP_OAUTH_REDIRECT_URL: ${{ vars.NEXT_PUBLIC_MANAGER_APP_OAUTH_REDIRECT_URL || secrets.NEXT_PUBLIC_MANAGER_APP_OAUTH_REDIRECT_URL }}
+          MANAGER_OAUTH_REDIRECT_URL: ${{ vars.MANAGER_OAUTH_REDIRECT_URL || secrets.MANAGER_OAUTH_REDIRECT_URL }}
+          NEXT_PUBLIC_MANAGER_OAUTH_REDIRECT_URL: ${{ vars.NEXT_PUBLIC_MANAGER_OAUTH_REDIRECT_URL || secrets.NEXT_PUBLIC_MANAGER_OAUTH_REDIRECT_URL }}
+          EXPO_PUBLIC_BUSINESS_NAME: ${{ vars.EXPO_PUBLIC_BUSINESS_NAME || secrets.EXPO_PUBLIC_BUSINESS_NAME }}
+          NEXT_PUBLIC_BUSINESS_NAME: ${{ vars.NEXT_PUBLIC_BUSINESS_NAME || secrets.NEXT_PUBLIC_BUSINESS_NAME }}
+          EXPO_PUBLIC_BUSINESS_ADDRESS: ${{ vars.EXPO_PUBLIC_BUSINESS_ADDRESS || secrets.EXPO_PUBLIC_BUSINESS_ADDRESS }}
+          NEXT_PUBLIC_BUSINESS_ADDRESS: ${{ vars.NEXT_PUBLIC_BUSINESS_ADDRESS || secrets.NEXT_PUBLIC_BUSINESS_ADDRESS }}
+          EXPO_PUBLIC_BUSINESS_EMAIL: ${{ vars.EXPO_PUBLIC_BUSINESS_EMAIL || secrets.EXPO_PUBLIC_BUSINESS_EMAIL }}
+          NEXT_PUBLIC_BUSINESS_EMAIL: ${{ vars.NEXT_PUBLIC_BUSINESS_EMAIL || secrets.NEXT_PUBLIC_BUSINESS_EMAIL }}
+          EXPO_PUBLIC_BUSINESS_GST: ${{ vars.EXPO_PUBLIC_BUSINESS_GST || secrets.EXPO_PUBLIC_BUSINESS_GST }}
+          NEXT_PUBLIC_BUSINESS_GST: ${{ vars.NEXT_PUBLIC_BUSINESS_GST || secrets.NEXT_PUBLIC_BUSINESS_GST }}
+          EXPO_PUBLIC_BUSINESS_PHONE: ${{ vars.EXPO_PUBLIC_BUSINESS_PHONE || secrets.EXPO_PUBLIC_BUSINESS_PHONE }}
+          NEXT_PUBLIC_BUSINESS_PHONE: ${{ vars.NEXT_PUBLIC_BUSINESS_PHONE || secrets.NEXT_PUBLIC_BUSINESS_PHONE }}
+        run: |
+          cat > apps/desktop/manager/.env.runtime <<EOF
+          EXPO_PUBLIC_SUPABASE_URL=${EXPO_PUBLIC_SUPABASE_URL}
+          NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=${EXPO_PUBLIC_SUPABASE_ANON_KEY}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+          EXPO_PUBLIC_POWERSYNC_URL=${EXPO_PUBLIC_POWERSYNC_URL}
+          NEXT_PUBLIC_POWERSYNC_URL=${NEXT_PUBLIC_POWERSYNC_URL}
+          MANAGER_APP_OAUTH_REDIRECT_URL=${MANAGER_APP_OAUTH_REDIRECT_URL}
+          NEXT_PUBLIC_MANAGER_APP_OAUTH_REDIRECT_URL=${NEXT_PUBLIC_MANAGER_APP_OAUTH_REDIRECT_URL}
+          MANAGER_OAUTH_REDIRECT_URL=${MANAGER_OAUTH_REDIRECT_URL}
+          NEXT_PUBLIC_MANAGER_OAUTH_REDIRECT_URL=${NEXT_PUBLIC_MANAGER_OAUTH_REDIRECT_URL}
+          EXPO_PUBLIC_BUSINESS_NAME=${EXPO_PUBLIC_BUSINESS_NAME}
+          NEXT_PUBLIC_BUSINESS_NAME=${NEXT_PUBLIC_BUSINESS_NAME}
+          EXPO_PUBLIC_BUSINESS_ADDRESS=${EXPO_PUBLIC_BUSINESS_ADDRESS}
+          NEXT_PUBLIC_BUSINESS_ADDRESS=${NEXT_PUBLIC_BUSINESS_ADDRESS}
+          EXPO_PUBLIC_BUSINESS_EMAIL=${EXPO_PUBLIC_BUSINESS_EMAIL}
+          NEXT_PUBLIC_BUSINESS_EMAIL=${NEXT_PUBLIC_BUSINESS_EMAIL}
+          EXPO_PUBLIC_BUSINESS_GST=${EXPO_PUBLIC_BUSINESS_GST}
+          NEXT_PUBLIC_BUSINESS_GST=${NEXT_PUBLIC_BUSINESS_GST}
+          EXPO_PUBLIC_BUSINESS_PHONE=${EXPO_PUBLIC_BUSINESS_PHONE}
+          NEXT_PUBLIC_BUSINESS_PHONE=${NEXT_PUBLIC_BUSINESS_PHONE}
+          EOF
+
+      - name: Package desktop manager
+        run: pnpm --dir apps/desktop/manager package
+
+      - name: Read desktop manager version
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" = "tag" ]; then
+            version="${REF_NAME#desktop-manager-v}"
+            version="${version#v}"
+          else
+            version="$(node -p 'require("./apps/desktop/manager/package.json").version')"
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-manager-${{ runner.os }}-${{ github.sha }}
+          path: |
+            apps/desktop/manager/release/*.dmg
+            apps/desktop/manager/release/*.exe
+            apps/desktop/manager/release/*.AppImage
+          if-no-files-found: error
+
+      - name: Publish release artifacts to Cloudflare R2
+        if: ${{ steps.r2.outputs.enabled == 'true' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ vars.CLOUDFLARE_R2_ACCESS_KEY_ID || secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ vars.CLOUDFLARE_R2_SECRET_ACCESS_KEY || secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.CLOUDFLARE_R2_BUCKET || secrets.CLOUDFLARE_R2_BUCKET || 'releases' }}
+          R2_ENDPOINT: ${{ vars.CLOUDFLARE_R2_ENDPOINT || secrets.CLOUDFLARE_R2_ENDPOINT }}
+          R2_PUBLIC_BASE_URL: https://releases.mondalfishcenter.com
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_OS: ${{ runner.os }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          artifact=""
+          for candidate in apps/desktop/manager/release/*; do
+            [ -f "$candidate" ] || continue
+            case "$candidate" in
+              *.dmg|*.exe|*.AppImage)
+                artifact="$candidate"
+                break
+                ;;
+            esac
+          done
+
+          if [ -z "$artifact" ]; then
+            echo "No top-level release artifact found in apps/desktop/manager/release" >&2
+            exit 1
+          fi
+
+          case "$artifact" in
+            *.dmg) ext="dmg" ;;
+            *.exe) ext="exe" ;;
+            *.AppImage) ext="AppImage" ;;
+            *) echo "Unsupported artifact type: $artifact" >&2; exit 1 ;;
+          esac
+
+          key="manager/${RELEASE_OS}/${RELEASE_VERSION}/manager_${RELEASE_OS}_${RELEASE_VERSION}_${RELEASE_SHA}.${ext}"
+          aws s3 cp "$artifact" "s3://${R2_BUCKET}/${key}" \
+            --endpoint-url "${R2_ENDPOINT}"
+
+          registry_path="apps/desktop/manager/release/registry.json"
+          latest_path="apps/desktop/manager/release/latest.json"
+          cat > "$registry_path" <<EOF
+          {
+            "app": "manager",
+            "platform": "${RELEASE_OS}",
+            "version": "${RELEASE_VERSION}",
+            "tag": "${RELEASE_TAG}",
+            "sha": "${RELEASE_SHA}",
+            "artifact": {
+              "path": "${key}",
+              "url": "${R2_PUBLIC_BASE_URL}/${key}"
+            }
+          }
+          EOF
+
+          cp "$registry_path" "$latest_path"
+
+          registry_tmp="$(mktemp)"
+          aws s3 cp "s3://${R2_BUCKET}/registry.json" "$registry_tmp" \
+            --endpoint-url "${R2_ENDPOINT}" || true
+          REGISTRY_TMP="$registry_tmp" node <<'EOF'
+          const fs = require('node:fs');
+          const path = process.env.REGISTRY_TMP;
+          const raw = fs.existsSync(path) ? fs.readFileSync(path, 'utf8').trim() : '';
+          const current = raw ? JSON.parse(raw) : {};
+          const entry = JSON.parse(fs.readFileSync('apps/desktop/manager/release/registry.json', 'utf8'));
+          const catalog = current.apps ?? {};
+          const latest = current.latest ?? {};
+          catalog.manager ??= {};
+          catalog.manager[entry.platform] ??= {};
+          catalog.manager[entry.platform][entry.version] = entry;
+          latest.manager = entry;
+          const next = { latest, apps: catalog };
+          fs.writeFileSync(path, JSON.stringify(next, null, 2));
+          fs.copyFileSync(path, 'apps/desktop/manager/release/registry.json');
+          fs.copyFileSync(path, 'apps/desktop/manager/release/latest.json');
+          EOF
+
+          aws s3 cp "$registry_path" "s3://${R2_BUCKET}/registry.json" \
+            --endpoint-url "${R2_ENDPOINT}"
+          aws s3 cp "$latest_path" "s3://${R2_BUCKET}/latest.json" \
+            --endpoint-url "${R2_ENDPOINT}"
+          echo "Uploaded: ${key}"

@@ -1,0 +1,48 @@
+appId: com.mfc.manager.desktop
+productName: MFC Manager
+
+directories:
+  buildResources: resources
+  output: release
+
+files:
+  - out/**
+  - package.json
+
+extraResources:
+  - from: .env.runtime
+    to: .env.runtime
+    filter:
+      - .env.runtime
+
+extraMetadata:
+  main: out/main/index.js
+
+asar: true
+asarUnpack:
+  - node_modules/@powersync/node/**/*
+  - node_modules/better-sqlite3/**/*
+
+protocols:
+  - name: MFC Manager
+    schemes:
+      - mfcmanager
+
+mac:
+  category: public.app-category.business
+  icon: resources/icon.icns
+  identity: null
+  target:
+    - dmg
+
+win:
+  icon: resources/icon.png
+  target:
+    - portable
+
+linux:
+  icon: resources/icon.png
+  target:
+    - AppImage
+
+publish: null

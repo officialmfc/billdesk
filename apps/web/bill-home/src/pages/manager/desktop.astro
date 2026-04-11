@@ -1,0 +1,60 @@
+---
+import { appCatalog } from "../../lib/site";
+import PortalLayout from "../../layouts/PortalLayout.astro";
+import ReleaseCard from "../../components/ReleaseCard.astro";
+
+const managerPlatforms = appCatalog.manager.platforms;
+---
+
+<PortalLayout
+  title="Manager Desktop - Bill Home"
+  description="Manager desktop release page with live registry data, website link, and latest download."
+  tone="manager"
+>
+  <section class="hero manager-hero">
+    <div class="hero-main">
+      <div class="tag"><span class="dot"></span>Manager / Desktop</div>
+      <h2>Manager Desktop</h2>
+      <p class="lead">Desktop builds for operations, users, quotes, payments, and workflow control.</p>
+      <div class="launch-strip" aria-label="Manager desktop overview">
+        <span>Desktop workspace</span>
+        <span>Website ready</span>
+        <span>Live registry</span>
+      </div>
+      <div class="hero-actions">
+        <a class="button primary" href="/releases">Open releases</a>
+        <a class="button secondary" href="https://manager.bill.mondalfishcenter.com">Open website</a>
+        <a class="button ghost" href="/">Home</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <div class="tag"><span class="dot"></span>Builds</div>
+      <h3>macOS and Windows</h3>
+      <p>Pick a desktop platform, open the website, and download the latest build.</p>
+    </div>
+    <div class="platform-grid">
+      {managerPlatforms.map((platform) => <ReleaseCard app="manager" platform={platform.key} summary compact />)}
+    </div>
+  </section>
+
+  <style>
+    .manager-hero .launch-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .manager-hero .launch-strip span {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+      color: var(--text);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+  </style>
+</PortalLayout>

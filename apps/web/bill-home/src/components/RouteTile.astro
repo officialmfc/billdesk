@@ -1,0 +1,118 @@
+---
+const {
+  href,
+  title,
+  description,
+  eyebrow = "Route",
+  note = "Open",
+  badge = "",
+} = Astro.props as {
+  href: string;
+  title: string;
+  description: string;
+  eyebrow?: string;
+  note?: string;
+  badge?: string;
+};
+---
+
+<a class="route-tile" href={href}>
+  <div class="route-head">
+    <span class="tag"><span class="dot"></span>{eyebrow}</span>
+    <span class="route-note">{note}</span>
+  </div>
+  <h3>{title}</h3>
+  <p>{description}</p>
+  <div class="route-foot">
+    <span class="route-path">{href}</span>
+    <span class="route-badge">{badge || "Open"}</span>
+  </div>
+</a>
+
+<style>
+  .route-tile {
+    position: relative;
+    display: grid;
+    gap: 12px;
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: #fff;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+    color: var(--text);
+    transition:
+      transform 120ms ease,
+      border-color 120ms ease,
+      background 120ms ease;
+  }
+
+  .route-tile:hover {
+    transform: translateY(-2px);
+    border-color: var(--line-strong);
+    background: #fff;
+  }
+
+  .route-tile::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), transparent 78%);
+  }
+
+  .route-head,
+  .route-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .route-note {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .route-tile h3 {
+    margin: 0;
+    font-size: 1.12rem;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+  }
+
+  .route-tile p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.55;
+    font-size: 0.94rem;
+  }
+
+  .route-path {
+    color: var(--muted-strong);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    word-break: break-word;
+  }
+
+  .route-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: #f8fbff;
+    color: var(--muted-strong);
+    font-size: 0.75rem;
+    font-weight: 800;
+  }
+
+  @media (max-width: 720px) {
+    .route-tile {
+      padding: 16px;
+    }
+  }
+</style>

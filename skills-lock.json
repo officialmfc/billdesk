@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "skills": {
+    "powersync": {
+      "source": "powersync-ja/agent-skills",
+      "sourceType": "github",
+      "computedHash": "a02ddc46c7f4622a52103135526f46eb40459b1ce71e7c82dc881c2aedc73282"
+    },
+    "supabase": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "computedHash": "cb675a889c60172febe84740e7c22b600c8241c390deaff3d368c408f10dffdf"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "computedHash": "f4cd7570115d97af6bcb2946eb891a958c8d04a43b479871c9ccadbc670ad058"
+    },
+    "zeptomail": {
+      "source": "vm0-ai/vm0-skills",
+      "sourceType": "github",
+      "computedHash": "2394df8860ff00b71ec18b52acf602b947641e4003c1661547f3ae1611ba926f"
+    }
+  }
+}

@@ -1,0 +1,324 @@
+@import 'tailwindcss';
+
+/* Map our design tokens to Tailwind v4 color names */
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  /* radius token used by components */
+  --radius: var(--radius);
+}
+
+/* Blue theme (shadcn default-inspired) — light mode */
+:root {
+  --radius: 0.65rem;
+
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+
+  /* primary blue (close to tailwind blue-500) */
+  --primary: 221 83% 53%;
+  --primary-foreground: 210 40% 98%;
+
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+
+  /* charts leaning blue */
+  --chart-1: 221 83% 53%;
+  --chart-2: 217 91% 60%;
+  --chart-3: 210 100% 50%;
+  --chart-4: 199 89% 48%;
+  --chart-5: 199 18% 35%;
+
+  /* sidebar */
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222 47% 11%;
+  --sidebar-primary: 221 83% 53%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 220 14% 96%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-ring: 221 83% 53%;
+}
+
+/* Blue theme — dark mode */
+.dark {
+  --background: 222 47% 4%;
+  --foreground: 210 40% 98%;
+
+  --card: 222 47% 8%;
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222 47% 8%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 11%;
+
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 224 76% 48%;
+
+  --chart-1: 217 91% 60%;
+  --chart-2: 221 83% 53%;
+  --chart-3: 210 100% 50%;
+  --chart-4: 199 89% 48%;
+  --chart-5: 199 18% 35%;
+
+  --sidebar: 222 47% 11%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 217 33% 17%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217 33% 17%;
+  --sidebar-ring: 224 76% 48%;
+}
+
+/* Make borders follow the design token by default */
+*,
+::before,
+::after {
+  border-color: hsl(var(--border));
+}
+
+/* Sell animation keyframes */
+@keyframes sell-bounce {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: translateY(-8px) scale(1.03);
+  }
+  60% {
+    transform: translateY(0) scale(0.98);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes coin-fall {
+  0% {
+    transform: translateY(-8px) scale(0.9);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(28px) scale(1);
+    opacity: 1;
+  }
+}
+
+.sell-bounce {
+  animation: sell-bounce 1.6s ease-in-out infinite;
+}
+.coin-fall {
+  animation: coin-fall 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+/* Improve color-scheme for form controls */
+html {
+  color-scheme: light dark;
+}
+
+@media print {
+  body[data-print-preview-open="true"] {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body[data-print-preview-open="true"] > :not([data-slot="dialog-portal"]):not([data-inline-print-host]) {
+    display: none !important;
+  }
+
+  body[data-print-preview-open="true"] [data-slot="dialog-overlay"],
+  body[data-print-preview-open="true"] [data-print-toolbar] {
+    display: none !important;
+  }
+
+  body[data-print-preview-open="true"] [data-slot="dialog-content"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    inset: auto !important;
+    left: auto !important;
+    max-width: none !important;
+    padding: 0 !important;
+    position: static !important;
+    top: auto !important;
+    transform: none !important;
+    width: auto !important;
+  }
+
+  body[data-print-preview-open="true"] [data-print-root] {
+    background: #ffffff !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  body[data-print-preview-open="true"] [data-inline-print-host] {
+    display: block !important;
+    inset: auto !important;
+    opacity: 1 !important;
+    position: static !important;
+  }
+
+  body[data-print-preview-open="true"] [data-inline-print-root] {
+    background: #ffffff !important;
+    margin: 0 auto !important;
+    overflow: visible !important;
+  }
+}
+
+/* Data-entry animation: simple growing lines + blinking caret + avatar pulse */
+@keyframes line-grow {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes caret-blink {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes avatar-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 223, 93, 0);
+  }
+  70% {
+    transform: scale(1.03);
+    box-shadow: 0 0 0 8px rgba(255, 223, 93, 0.08);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 223, 93, 0);
+  }
+}
+
+.type-line {
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.type-line.animate {
+  animation: line-grow 700ms ease forwards;
+}
+.type-caret {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background: currentColor;
+  opacity: 1;
+}
+.type-caret.blink {
+  animation: caret-blink 900ms steps(1, end) infinite;
+}
+.avatar-pulse {
+  animation: avatar-pulse 1800ms ease-in-out infinite;
+}
+
+/* MUI DatePicker inline styles */
+.mui-datepicker-inline .MuiInputBase-root {
+  color: hsl(var(--foreground)) !important;
+  background-color: transparent !important;
+  height: 32px !important;
+  font-size: 0.875rem !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+.mui-datepicker-inline .MuiInputBase-input {
+  color: hsl(var(--foreground)) !important;
+  padding: 4px 8px !important;
+  text-align: center !important;
+}
+
+.mui-datepicker-inline .MuiOutlinedInput-notchedOutline {
+  border-color: transparent !important;
+  border-width: 0 !important;
+}
+
+.mui-datepicker-inline .MuiInputLabel-root {
+  display: none !important;
+}
+
+.mui-datepicker-inline .MuiSvgIcon-root {
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 1rem !important;
+}
+
+.mui-datepicker-inline:hover .MuiOutlinedInput-notchedOutline {
+  border-color: transparent !important;
+}

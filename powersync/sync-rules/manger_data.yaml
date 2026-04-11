@@ -1,0 +1,309 @@
+config:
+  edition: 3
+
+streams:
+  manger_data:
+    auto_subscribe: true
+    queries:
+      - |
+          SELECT
+            id::text AS id,
+            auth_user_id::text AS auth_user_id,
+            name,
+            business_name,
+            phone,
+            user_type,
+            default_role,
+            is_active,
+            address,
+            profile_photo_url,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.users
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            full_name,
+            role,
+            is_active,
+            is_default_admin,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.mfc_staff
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            name,
+            description,
+            is_stock_tracked,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.products
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            product_id::text AS product_id,
+            batch_code,
+            supplier_id::text AS supplier_id,
+            initial_weight_kg,
+            current_weight_kg,
+            cost_per_kg,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by,
+            mfc_seller_id::text AS mfc_seller_id
+          FROM public.stock_batches
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            bill_number,
+            customer_id::text AS customer_id,
+            bill_date,
+            total_amount,
+            amount_paid,
+            status,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by,
+            is_migration_bill
+          FROM public.daily_bills
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            chalan_number,
+            seller_id::text AS seller_id,
+            mfc_seller_id::text AS mfc_seller_id,
+            chalan_date,
+            total_sale_value,
+            commission_rate_percent,
+            commission_amount,
+            net_payable,
+            amount_paid,
+            status,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.chalans
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            daily_bill_id::text AS daily_bill_id,
+            stock_batch_id::text AS stock_batch_id,
+            chalan_id::text AS chalan_id,
+            product_id::text AS product_id,
+            product_description,
+            weight_kg,
+            price_per_kg,
+            amount,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by,
+            sale_type
+          FROM public.sale_transactions
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            daily_bill_id::text AS daily_bill_id,
+            payment_date,
+            amount,
+            payment_method,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.customer_payments
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            chalan_id::text AS chalan_id,
+            payment_date,
+            amount,
+            payment_method,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.seller_payments
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            spent_date,
+            title,
+            category,
+            amount,
+            note,
+            payment_method,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.manager_spendings
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            quote_number,
+            customer_id::text AS customer_id,
+            assigned_mfc_seller_id::text AS assigned_mfc_seller_id,
+            delivery_date,
+            total_amount,
+            advance_paid,
+            status,
+            notes,
+            created_at,
+            updated_at,
+            created_by::text AS created_by,
+            updated_by::text AS updated_by
+          FROM public.quotes
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            quote_id::text AS quote_id,
+            product_id::text AS product_id,
+            product_description,
+            weight_kg,
+            price_per_kg,
+            line_total
+          FROM public.quote_items
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            user_id::text AS id,
+            user_id::text AS user_id,
+            total_billed,
+            total_paid,
+            current_due,
+            updated_at
+          FROM public.customer_balance
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            user_id::text AS id,
+            user_id::text AS user_id,
+            total_earned,
+            total_paid_out,
+            current_due,
+            updated_at
+          FROM public.seller_balance
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            email,
+            full_name,
+            business_name,
+            phone,
+            message,
+            status,
+            created_at,
+            updated_at,
+            updated_by::text AS updated_by
+          FROM public.public_registrations
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )
+      - |
+          SELECT
+            id::text AS id,
+            default_admin_id::text AS default_admin_id,
+            mfc_stock_buyer_id::text AS mfc_stock_buyer_id
+          FROM public.system_config
+          WHERE auth.user_id() IN (
+            SELECT id
+            FROM public.mfc_staff
+            WHERE role = 'manager'
+              AND is_active = true
+          )

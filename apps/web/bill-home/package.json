@@ -1,0 +1,17 @@
+{
+  "name": "@mfc/bill-home",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --host 0.0.0.0",
+    "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
+    "check": "ASTRO_TELEMETRY_DISABLED=1 astro check"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.8",
+    "astro": "^6.1.5",
+    "typescript": "^5.9.3"
+  }
+}

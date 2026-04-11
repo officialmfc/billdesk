@@ -1,0 +1,139 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# -----------------------------------------------------------------------------
+# Node / monorepo
+# -----------------------------------------------------------------------------
+# workspace node_modules
+node_modules/
+**/node_modules/
+
+# Yarn PnP (if present)
+/.pnp
+.pnp.*
+
+# Keep checked-in Yarn releases/patches if intentionally committed
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/patches
+
+# -----------------------------------------------------------------------------
+# Build / cache / runtime
+# -----------------------------------------------------------------------------
+# Next.js
+.next/
+**/.next/
+/out
+**/out/
+
+# Astro
+.astro/
+**/.astro/
+
+# Production / general build folders
+/build
+/dist
+**/build/
+**/dist/
+
+# Turborepo / cache
+.turbo
+.cache
+.parcel-cache
+
+# pnpm cache/debug
+.pnpm-debug.log*
+.pnpm-store
+
+# -----------------------------------------------------------------------------
+# Logs / reports
+# -----------------------------------------------------------------------------
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+logs
+*.log
+
+# Coverage & test artifacts
+/coverage
+.nyc_output
+playwright-report/
+test-results/
+
+# -----------------------------------------------------------------------------
+# Environment files
+# -----------------------------------------------------------------------------
+# Ignore local/secret env files but keep examples (e.g. .env.example)
+.env
+.env.*
+!.env.example
+!.env.template
+!.envrc
+**/.env
+**/.env.*
+**/**/.env
+**/**/.env.*
+!**/.env.example
+!**/.env.template
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Doppler
+.doppler.yaml
+doppler.yaml
+
+# -----------------------------------------------------------------------------
+# OS / editor files
+# -----------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+.kiro
+.claude/
+.code-review-graph/
+
+# -----------------------------------------------------------------------------
+# TypeScript / tooling
+# -----------------------------------------------------------------------------
+*.tsbuildinfo
+next-env.d.ts
+.expo/
+**/.expo/
+zztemp.txt
+
+# -----------------------------------------------------------------------------
+# Ignore lockfiles for other package managers to avoid confusion
+# We intentionally DO NOT ignore pnpm-lock.yaml - keep pnpm lock(s) committed
+# -----------------------------------------------------------------------------
+package-lock.json
+yarn.lock
+
+# -----------------------------------------------------------------------------
+# Deployment / platform
+# -----------------------------------------------------------------------------
+.vercel
+
+# -----------------------------------------------------------------------------
+# Temporary / test files
+# -----------------------------------------------------------------------------
+*.tmp
+*.temp
+.temp/
+.tmp/
+
+
+
+
+
+
+#schema 
+
+
+# Sentry Config File
+.env.sentry-build-plugin

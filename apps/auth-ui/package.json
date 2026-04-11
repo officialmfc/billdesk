@@ -1,0 +1,16 @@
+{
+  "name": "@mfc/auth-ui",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "deploy": "wrangler pages deploy public --project-name auth --branch main",
+    "preview": "wrangler pages deploy public --project-name auth --branch preview"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "^5",
+    "wrangler": "^4.45.0"
+  }
+}

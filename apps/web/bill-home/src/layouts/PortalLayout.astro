@@ -1,0 +1,970 @@
+---
+import { appCatalog, logoSources, registryUrl } from "../lib/site";
+
+const {
+  title = "Bill Home",
+  description = "Mondal Fish Center app hub and release registry.",
+  tone = "launcher",
+} = Astro.props as {
+  title?: string;
+  description?: string;
+  tone?: "launcher" | "manager" | "manager-mobile" | "admin" | "user" | "releases";
+};
+
+const pathname = Astro.url.pathname.replace(/\/+$/, "") || "/";
+const navItems = [
+  { href: "/", label: "Home" },
+  { href: appCatalog.user.route, label: "User" },
+  { href: appCatalog.manager.route, label: "Manager Desktop" },
+  { href: appCatalog.admin.route, label: "Admin" },
+  { href: "/releases", label: "Releases" },
+];
+
+const isActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+
+const toneStyles = {
+  launcher: {
+    accent: "#2563eb",
+    accentStrong: "#1d4ed8",
+    accentSoft: "rgba(37, 99, 235, 0.10)",
+    heroSheen: "rgba(37, 99, 235, 0.08)",
+    success: "#16a34a",
+  },
+  manager: {
+    accent: "#0f766e",
+    accentStrong: "#115e59",
+    accentSoft: "rgba(15, 118, 110, 0.10)",
+    heroSheen: "rgba(15, 118, 110, 0.08)",
+    success: "#0f766e",
+  },
+  "manager-mobile": {
+    accent: "#0369a1",
+    accentStrong: "#075985",
+    accentSoft: "rgba(3, 105, 161, 0.10)",
+    heroSheen: "rgba(3, 105, 161, 0.08)",
+    success: "#0369a1",
+  },
+  admin: {
+    accent: "#2563eb",
+    accentStrong: "#1d4ed8",
+    accentSoft: "rgba(37, 99, 235, 0.10)",
+    heroSheen: "rgba(37, 99, 235, 0.08)",
+    success: "#2563eb",
+  },
+  user: {
+    accent: "#d97706",
+    accentStrong: "#b45309",
+    accentSoft: "rgba(217, 119, 6, 0.10)",
+    heroSheen: "rgba(217, 119, 6, 0.08)",
+    success: "#d97706",
+  },
+  releases: {
+    accent: "#7c3aed",
+    accentStrong: "#6d28d9",
+    accentSoft: "rgba(124, 58, 237, 0.10)",
+    heroSheen: "rgba(124, 58, 237, 0.08)",
+    success: "#7c3aed",
+  },
+} satisfies Record<
+  "launcher" | "manager" | "manager-mobile" | "admin" | "user" | "releases",
+  {
+    accent: string;
+    accentStrong: string;
+    accentSoft: string;
+    heroSheen: string;
+    success: string;
+  }
+>;
+
+const toneStyle = toneStyles[tone];
+const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.accentStrong};--accent-soft:${toneStyle.accentSoft};--success:${toneStyle.success};--hero-sheen:${toneStyle.heroSheen};`;
+---
+
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <meta name="description" content={description} />
+  <title>{title}</title>
+  <style is:global>
+    :root {
+      color-scheme: light;
+      --bg: #f3f7fc;
+      --bg-soft: #eaf1fb;
+      --panel: #ffffff;
+      --panel-soft: rgba(255, 255, 255, 0.84);
+      --line: #dbe4f0;
+      --line-strong: #b8c6d9;
+      --text: #0f172a;
+      --muted: #5b6474;
+      --muted-strong: #334155;
+      --accent: #2563eb;
+      --accent-strong: #1d4ed8;
+      --accent-soft: rgba(37, 99, 235, 0.10);
+      --success: #16a34a;
+      --hero-sheen: rgba(37, 99, 235, 0.08);
+      --warning: #b45309;
+      --shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --font-ui:
+        Inter,
+        "Segoe UI",
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        sans-serif;
+      --font-mono:
+        "SFMono-Regular",
+        ui-monospace,
+        "Cascadia Code",
+        "Segoe UI Mono",
+        Menlo,
+        Monaco,
+        Consolas,
+        monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: var(--font-ui);
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 22%),
+        linear-gradient(180deg, #f8fbff 0%, #f4f8fd 52%, #edf3fb 100%);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: none;
+    }
+
+    .shell {
+      width: min(1160px, calc(100% - 24px));
+      margin: 12px auto 24px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 4px 0 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .logo {
+      width: 50px;
+      height: 50px;
+      flex: 0 0 auto;
+      border-radius: 15px;
+      padding: 6px;
+      object-fit: contain;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .brand-copy {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--accent);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+    }
+
+    .brand-copy h1 {
+      margin: 0;
+      font-size: 1.05rem;
+      letter-spacing: -0.04em;
+      line-height: 1.08;
+    }
+
+    .brand-copy p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.4;
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 12px 16px;
+      font-size: 0.88rem;
+      color: var(--muted-strong);
+    }
+
+    .nav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding-bottom: 2px;
+      border-bottom: 1px solid transparent;
+      font-weight: 700;
+      transition: color 120ms ease, border-color 120ms ease;
+    }
+
+    .nav a::before {
+      content: "/";
+      color: var(--muted);
+    }
+
+    .nav a:hover,
+    .nav a[aria-current="page"] {
+      color: var(--text);
+      border-color: var(--accent-soft);
+    }
+
+    .workspace {
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+      align-items: stretch;
+      padding: 6px 0 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      position: relative;
+      overflow: visible;
+    }
+
+    .hero-main {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(2rem, 3.8vw, 3.4rem);
+      line-height: 0.96;
+      letter-spacing: -0.06em;
+    }
+
+    .lead {
+      margin: 0;
+      max-width: 62ch;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 0.98rem;
+    }
+
+    .hero-actions,
+    .actions,
+    .page-stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .page-stack {
+      display: grid;
+      gap: 0;
+    }
+
+    .page-link {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .page-link strong {
+      font-size: 0.98rem;
+      letter-spacing: -0.03em;
+    }
+
+    .page-link span {
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: right;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 42px;
+      padding: 0 15px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      font-size: 0.88rem;
+      font-weight: 700;
+      transition:
+        transform 120ms ease,
+        border-color 120ms ease,
+        background 120ms ease,
+        color 120ms ease;
+      white-space: nowrap;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+    }
+
+    .button.primary {
+      color: #fff;
+      background: linear-gradient(180deg, #4f7df0 0%, #2563eb 100%);
+      border-color: rgba(37, 99, 235, 0.18);
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.16);
+    }
+
+    .button.secondary {
+      color: var(--text);
+      border-color: var(--line);
+      background: #fff;
+    }
+
+    .button.ghost {
+      color: var(--accent-strong);
+      border-color: rgba(37, 99, 235, 0.14);
+      background: rgba(37, 99, 235, 0.06);
+    }
+
+    .button.disabled {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    .panel,
+    .release-card,
+    .route-tile {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fff;
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+    }
+
+    .release-card.compact {
+      padding: 16px;
+    }
+
+    .release-card.summary {
+      gap: 12px;
+    }
+
+    .release-card.summary h3 {
+      font-size: 1.12rem;
+    }
+
+    .release-card.summary p {
+      font-size: 0.9rem;
+    }
+
+    .release-card.highlight {
+      background:
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 26%),
+        #fff;
+    }
+
+    .release-card[data-app="manager"] {
+      border-top: 3px solid rgba(15, 118, 110, 0.35);
+    }
+
+    .release-card[data-app="admin"] {
+      border-top: 3px solid rgba(37, 99, 235, 0.35);
+    }
+
+    .release-card[data-app="user"] {
+      border-top: 3px solid rgba(217, 119, 6, 0.35);
+    }
+
+    .release-card[data-app="manager"] .tag {
+      background: rgba(15, 118, 110, 0.08);
+      color: #0f766e;
+    }
+
+    .release-card[data-app="admin"] .tag {
+      background: rgba(37, 99, 235, 0.08);
+      color: #1d4ed8;
+    }
+
+    .release-card[data-app="user"] .tag {
+      background: rgba(217, 119, 6, 0.08);
+      color: #b45309;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .platform-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+      color: var(--muted-strong);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.08);
+      color: var(--accent-strong);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: currentColor;
+      flex: 0 0 auto;
+    }
+
+    .release-card h3,
+    .panel h3,
+    .section-heading h3 {
+      margin: 0;
+      font-size: 1.3rem;
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+    }
+
+    .release-card p,
+    .panel p,
+    .section-heading p,
+    .hero-note {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+
+    .section {
+      display: grid;
+      gap: 16px;
+    }
+
+    .detail {
+      display: grid;
+      gap: 16px;
+    }
+
+    .section-heading {
+      display: grid;
+      gap: 8px;
+    }
+
+    .meta {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .meta-summary {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .meta-summary span {
+      display: grid;
+      gap: 4px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+    }
+
+    .meta-summary strong {
+      min-width: 0;
+      font-size: 0.7rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .meta-summary span span {
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .meta span {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      line-height: 1.35;
+    }
+
+    .meta strong {
+      color: var(--muted-strong);
+      font-weight: 700;
+      min-width: 62px;
+    }
+
+    .supporting {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted-strong);
+      font-size: 0.84rem;
+    }
+
+    .supporting span {
+      padding: 8px 10px;
+      border-radius: 11px;
+      background: #f8fbff;
+      border: 1px solid var(--line);
+    }
+
+    .card-grid,
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .footer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 4px 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .footer a {
+      color: var(--accent-strong);
+    }
+
+    .loading {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      border: 2px solid rgba(37, 99, 235, 0.20);
+      border-top-color: var(--accent);
+      animation: spin 1s linear infinite;
+      flex: 0 0 auto;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 1080px) {
+      .topbar,
+      .hero,
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        gap: 10px 14px;
+      }
+
+      .card-grid,
+      .platform-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        width: min(100% - 16px, 1160px);
+        margin: 8px auto 18px;
+      }
+
+      .topbar,
+      .hero,
+      .panel,
+      .release-card,
+      .route-tile {
+        padding: 16px;
+        border-radius: 18px;
+      }
+
+      .hero-actions,
+      .actions,
+      .page-stack {
+        width: 100%;
+      }
+
+      .button {
+        width: 100%;
+      }
+
+      .nav a {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .meta-summary {
+        grid-template-columns: 1fr;
+      }
+
+      .page-link {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .page-link span {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="shell" data-tone={tone} style={shellStyle}>
+    <header class="topbar">
+      <a class="brand" href="/">
+        <img
+          class="logo"
+          id="bill-home-logo"
+          src={logoSources[0]}
+          alt="Mondal Fish Center"
+        />
+        <div class="brand-copy">
+          <h1>Bill Home</h1>
+          <p>Browser links and downloads from the live R2 registry.</p>
+        </div>
+      </a>
+
+      <nav class="nav" aria-label="Bill Home navigation">
+        {navItems.map((item) => (
+          <a href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>
+            {item.label}
+          </a>
+        ))}
+      </nav>
+    </header>
+
+    <section class="workspace">
+      <slot />
+    </section>
+
+    <footer class="footer">
+      <span>Mondal Fish Center</span>
+      <a href={registryUrl}>{registryUrl}</a>
+    </footer>
+  </main>
+
+  <div
+    id="bill-home-config"
+    hidden
+    data-registry-url={registryUrl}
+    data-logo-sources={JSON.stringify(logoSources)}
+  />
+  <script is:inline>
+    const configTag = document.getElementById("bill-home-config");
+    const registryUrl = configTag?.dataset.registryUrl || "";
+    const logoSources = configTag?.dataset.logoSources ? JSON.parse(configTag.dataset.logoSources) : [];
+    const appMeta = {
+      manager: { title: "Manager Desktop" },
+      admin: { title: "Admin Mobile" },
+      user: { title: "User Mobile" },
+    };
+
+    function matchesPlatform(entry, platform) {
+      if (!platform) {
+        return true;
+      }
+
+      const entryPlatform = String(entry?.platform || entry?.device || "").toLowerCase();
+      const normalizedPlatform = String(platform).toLowerCase();
+      return entryPlatform === normalizedPlatform || entryPlatform.includes(normalizedPlatform);
+    }
+
+    function findReleaseEntry(value, platform) {
+      if (!value || typeof value !== "object") {
+        return null;
+      }
+
+      if (Array.isArray(value)) {
+        for (let index = value.length - 1; index >= 0; index -= 1) {
+          const nested = findReleaseEntry(value[index], platform);
+          if (nested && matchesPlatform(nested, platform)) {
+            return nested;
+          }
+        }
+
+        for (let index = value.length - 1; index >= 0; index -= 1) {
+          const nested = findReleaseEntry(value[index]);
+          if (nested) {
+            return nested;
+          }
+        }
+
+        return null;
+      }
+
+      if (value.artifact || value.version) {
+        if (matchesPlatform(value, platform)) {
+          return value;
+        }
+
+        if (!platform) {
+          return value;
+        }
+      }
+
+      for (const nested of Object.values(value)) {
+        const entry = findReleaseEntry(nested, platform);
+        if (entry && matchesPlatform(entry, platform)) {
+          return entry;
+        }
+      }
+
+      for (const nested of Object.values(value)) {
+        const entry = findReleaseEntry(nested);
+        if (entry) {
+          return entry;
+        }
+      }
+
+      return null;
+    }
+
+    function pickEntry(registry, app, platform) {
+      const latest = registry?.latest ?? {};
+      const latestEntry = findReleaseEntry(latest[app], platform);
+      if (latestEntry) {
+        return latestEntry;
+      }
+
+      const apps = registry?.apps ?? {};
+      const appEntry = findReleaseEntry(apps[app], platform);
+      if (appEntry) {
+        return appEntry;
+      }
+
+      return null;
+    }
+
+    function resolveWebsiteUrl(entry, fallbackWebsite) {
+      return (
+        entry?.website?.url ||
+        entry?.website_url ||
+        entry?.websiteUrl ||
+        entry?.app_url ||
+        entry?.appUrl ||
+        fallbackWebsite ||
+        ""
+      );
+    }
+
+    function resolveDownloadUrl(entry) {
+      return (
+        entry?.artifact?.url ||
+        entry?.artifact_url ||
+        entry?.download_url ||
+        entry?.downloadUrl ||
+        entry?.url ||
+        ""
+      );
+    }
+
+    function entrySummary(entry, fallbackWebsite) {
+      const websiteUrl = resolveWebsiteUrl(entry, fallbackWebsite);
+      const downloadUrl = resolveDownloadUrl(entry);
+      return {
+        websiteUrl,
+        downloadUrl,
+        version: entry?.version || "not published yet",
+        platform: entry?.platform || "latest",
+      };
+    }
+
+    function setButtonState(link, url, fallbackLabel) {
+      if (!link) {
+        return;
+      }
+
+      if (url) {
+        link.href = url;
+        link.classList.remove("disabled");
+        link.removeAttribute("aria-disabled");
+        link.removeAttribute("tabindex");
+        return;
+      }
+
+      link.href = "#";
+      link.classList.add("disabled");
+      link.setAttribute("aria-disabled", "true");
+      link.setAttribute("tabindex", "-1");
+      if (fallbackLabel) {
+        link.textContent = fallbackLabel;
+      }
+    }
+
+    function updateReleaseCard(card, registry) {
+      const app = card.dataset.app;
+      const platform = card.dataset.platform || "";
+      const release = pickEntry(registry, app, platform);
+      const pageRoute = card.dataset.pageRoute || "";
+      const fallbackWebsite = card.dataset.fallbackWebsite || "";
+      const summary = entrySummary(release, fallbackWebsite);
+      const website = summary.websiteUrl;
+      const download = summary.downloadUrl;
+      const version = summary.version;
+      const sha = release?.sha || "Waiting for registry";
+      const tag = release?.tag || "Waiting for registry";
+      const resolvedPlatform = summary.platform || platform || card.dataset.device || "latest";
+      const badge = release
+        ? `${card.dataset.platformLabel || resolvedPlatform} live`
+        : "Waiting for registry";
+
+      const title = card.querySelector("[data-release-title]");
+      const badgeText = card.querySelector("[data-release-badge]");
+      const platformChip = card.querySelector("[data-platform-chip]");
+      const websiteText = card.querySelector("[data-website-text]");
+      const versionText = card.querySelector("[data-version-text]");
+      const buildText = card.querySelector("[data-build-text]");
+      const tagText = card.querySelector("[data-tag-text]");
+      const shaText = card.querySelector("[data-sha-text]");
+      const websiteLink = card.querySelector("[data-website]");
+      const pageLink = card.querySelector("[data-page-link]");
+      const downloadLink = card.querySelector("[data-download]");
+
+      if (title) {
+        title.textContent = card.dataset.cardTitle || appMeta[app]?.title || (pageRoute.includes("manager")
+          ? "Manager Desktop"
+          : pageRoute.includes("admin")
+            ? "Admin Mobile"
+            : "User Mobile");
+      }
+      if (badgeText) {
+        badgeText.textContent = badge;
+      }
+      if (platformChip) {
+        platformChip.textContent = release ? `${resolvedPlatform} live` : card.dataset.platformLabel || "Waiting for registry";
+      }
+      if (websiteText) {
+        websiteText.textContent = website.replace(/^https?:\/\//, "");
+      }
+      if (versionText) {
+        versionText.textContent = version;
+      }
+      if (buildText) {
+        buildText.textContent = download ? `${resolvedPlatform} build` : "Not published yet";
+      }
+      if (tagText) {
+        tagText.textContent = tag;
+      }
+      if (shaText) {
+        shaText.textContent = sha;
+      }
+      if (websiteLink) {
+        websiteLink.href = website;
+      }
+      if (pageLink) {
+        pageLink.href = pageRoute;
+      }
+      setButtonState(downloadLink, download, card.dataset.downloadLabel || "Not published yet");
+    }
+
+    function setupLogoFallback() {
+      const logo = document.getElementById("bill-home-logo");
+      if (!logo) {
+        return;
+      }
+
+      let index = 0;
+      logo.addEventListener("error", () => {
+        index += 1;
+        if (index < logoSources.length) {
+          logo.src = logoSources[index];
+        }
+      });
+    }
+
+    async function loadRegistry() {
+      let registry = null;
+
+      try {
+        const response = await fetch(registryUrl, { cache: "no-store" });
+        if (response.ok) {
+          registry = await response.json();
+        }
+      } catch (_) {
+        registry = null;
+      }
+
+      document.querySelectorAll("[data-release-card]").forEach((card) => {
+        updateReleaseCard(card, registry);
+      });
+    }
+
+    setupLogoFallback();
+    void loadRegistry();
+  </script>
+</body>
+
+</html>

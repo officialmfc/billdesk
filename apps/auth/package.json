@@ -1,0 +1,29 @@
+{
+  "name": "@mfc/auth-hub",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --port 3200",
+    "start": "wrangler dev --port 3200",
+    "build": "tsc --noEmit",
+    "build:cf": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "preview": "wrangler dev --port 3200",
+    "db:migrate:local": "wrangler d1 migrations apply auth-hub --local --config wrangler.jsonc",
+    "db:migrate:remote": "wrangler d1 migrations apply auth-hub --remote --config wrangler.jsonc",
+    "deploy": "wrangler deploy --config wrangler.jsonc --keep-vars",
+    "cf:deploy": "wrangler deploy --config wrangler.jsonc --keep-vars",
+    "cf:preview": "wrangler deploy --dry-run --config wrangler.jsonc",
+    "cf:typegen": "wrangler types --env-interface AuthHubCloudflareEnv apps/auth/cloudflare-env.d.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.80.0",
+    "standardwebhooks": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "eslint": "^9",
+    "typescript": "^5",
+    "wrangler": "^4.45.0"
+  }
+}

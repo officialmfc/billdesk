@@ -1,0 +1,45 @@
+---
+import PortalLayout from "../layouts/PortalLayout.astro";
+---
+
+<PortalLayout
+  title="Bill Home"
+  description="Bill Home is the lightweight MFC portal for app pages, release pages, and download links."
+  tone="launcher"
+>
+  <section class="hero">
+    <div class="hero-main">
+      <h2>Bill Home</h2>
+      <p class="lead">Open the app in browser or go to downloads.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="https://auth.mondalfishcenter.com/login?app=user&platform=mobile">Open browser</a>
+        <a class="button secondary" href="/releases">Open downloads</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <h3>Pages</h3>
+      <p>Simple browser links and download pages.</p>
+    </div>
+    <div class="page-stack">
+      <a class="page-link" href="/user">
+        <strong>User</strong>
+        <span>Mobile browser and Android</span>
+      </a>
+      <a class="page-link" href="/manager">
+        <strong>Manager</strong>
+        <span>Desktop and mobile</span>
+      </a>
+      <a class="page-link" href="/admin">
+        <strong>Admin</strong>
+        <span>Mobile browser and Android</span>
+      </a>
+      <a class="page-link" href="/releases">
+        <strong>Releases</strong>
+        <span>Live R2 download page</span>
+      </a>
+    </div>
+  </section>
+</PortalLayout>
