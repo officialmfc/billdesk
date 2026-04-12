@@ -4,13 +4,6 @@ on:
   push:
     tags:
       - "v*"
-    paths:
-      - "apps/mobile/manager/**"
-      - "apps/mobile/admin/**"
-      - "apps/mobile/user/**"
-      - "packages/**"
-      - "powersync/**"
-      - ".github/workflows/mobile-eas-build.yml"
   workflow_dispatch:
     inputs:
       app:
@@ -62,47 +55,18 @@ jobs:
           PROFILE_INPUT: ${{ github.event.inputs.profile }}
         run: |
           node <<'EOF' >> "$GITHUB_OUTPUT"
-          const { execSync } = require("node:child_process");
           const appInput = process.env.APP_INPUT;
           const platformInput = process.env.PLATFORM_INPUT;
           const profileInput = process.env.PROFILE_INPUT;
           const eventName = process.env.EVENT_NAME;
           const refType = process.env.REF_TYPE;
 
-          const defaultProfile = eventName === "push" ? "preview" : profileInput;
+          const defaultProfile = eventName === "push" ? "production" : profileInput;
           const defaultPlatforms = ["android"];
 
           let apps;
           if (eventName === "push") {
-            const afterSha = process.env.AFTER_SHA;
-            const beforeSha = process.env.BEFORE_SHA;
-            let diffCommand = `git diff --name-only ${beforeSha} ${afterSha}`;
-            if (refType === "tag") {
-              diffCommand = `git diff-tree --no-commit-id --name-only -r ${afterSha}`;
-            } else {
-              try {
-                execSync(`git cat-file -e ${beforeSha}^{commit}`, { stdio: "ignore" });
-              } catch {
-                diffCommand = `git diff-tree --no-commit-id --name-only -r ${afterSha}`;
-              }
-            }
-
-            const diff = execSync(diffCommand, { encoding: "utf8" })
-              .split("\n")
-              .filter(Boolean);
-            const set = new Set();
-            for (const file of diff) {
-              if (file.startsWith("apps/mobile/manager/") || file.startsWith("packages/") || file.startsWith("powersync/")) {
-                set.add("manager");
-              }
-              if (file.startsWith("apps/mobile/admin/") || file.startsWith("packages/") || file.startsWith("powersync/")) {
-                set.add("admin");
-              }
-              if (file.startsWith("apps/mobile/user/") || file.startsWith("packages/") || file.startsWith("powersync/")) {
-                set.add("user");
-              }
-            }
-            apps = Array.from(set);
+            apps = ["manager", "admin", "user"];
           } else {
             apps = appInput === "all" ? ["manager", "admin", "user"] : [appInput];
           }

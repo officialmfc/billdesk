@@ -6,13 +6,6 @@ on:
     tags:
       - "v*"
       - "desktop-manager-v*"
-    paths:
-      - "apps/desktop/manager/**"
-      - "apps/web/manager/**"
-      - "packages/**"
-      - "powersync/**"
-      - "supabase/**"
-      - ".github/workflows/desktop-manager-release.yml"
 
 jobs:
   prepare:
@@ -28,8 +21,14 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           AFTER_SHA: ${{ github.sha }}
+          REF_TYPE: ${{ github.ref_type }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$REF_TYPE" = "tag" ]; then
             echo "should_build=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
