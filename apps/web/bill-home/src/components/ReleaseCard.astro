@@ -18,6 +18,7 @@ const {
   platformLabel: platformLabelProp,
   downloadLabel: downloadLabelProp,
   device: deviceProp,
+  source: sourceProp,
 } = Astro.props as {
   app: AppKey;
   platform?: PlatformKey;
@@ -30,12 +31,14 @@ const {
   platformLabel?: string;
   downloadLabel?: string;
   device?: "desktop" | "mobile";
+  source?: "latest" | "registry";
 };
 
 const meta = appCatalog[app];
 const platformMeta = platform
   ? meta.platforms.find((item) => item.key === platform) ?? meta.platforms[0]
   : null;
+const source = sourceProp || (app === "manager" && platform && ["macos", "windows"].includes(platform) ? "registry" : "latest");
 const title = titleProp || (platform ? platformTitle(app, platform) : `${meta.title} ${meta.device === "desktop" ? "Desktop" : "Mobile"}`);
 const defaultWebsiteLabel = new URL(websiteProp || meta.website).host;
 const platformLabel = platformLabelProp || platformMeta?.label || meta.badge;
@@ -55,6 +58,7 @@ const platformChipLabel = platformLabelProp || platformMeta?.title || meta.badge
   data-device={device}
   data-page-route={pageRoute}
   data-fallback-website={fallbackWebsite}
+  data-release-source={source}
   data-card-title={title}
   data-platform-label={platformLabel}
   data-download-label={downloadLabel}

@@ -778,14 +778,18 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
       return null;
     }
 
-    function pickEntry(registry, app, platform) {
-      const latest = registry?.latest ?? {};
+    function pickEntry(snapshot, app, platform) {
+      if (!snapshot) {
+        return null;
+      }
+
+      const latest = snapshot?.latest ?? {};
       const latestEntry = findReleaseEntry(latest[app], platform);
       if (latestEntry) {
         return latestEntry;
       }
 
-      const apps = registry?.apps ?? {};
+      const apps = snapshot?.apps ?? {};
       const appEntry = findReleaseEntry(apps[app], platform);
       if (appEntry) {
         return appEntry;
@@ -850,11 +854,19 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
       }
     }
 
-    function updateReleaseCard(card, registry, registryLoaded) {
+    function updateReleaseCard(card, registrySnapshot, latestSnapshot, registryLoaded, latestLoaded) {
       const app = card.dataset.app;
       const platform = card.dataset.platform || "";
-      const release = pickEntry(registry, app, platform);
-      const shouldHide = registryLoaded && platform && !release;
+      const sourcePreference = card.dataset.releaseSource || "latest";
+      const primarySnapshot = sourcePreference === "registry" ? registrySnapshot : latestSnapshot;
+      const secondarySnapshot = sourcePreference === "registry" ? latestSnapshot : registrySnapshot;
+      const primaryLoaded = sourcePreference === "registry" ? registryLoaded : latestLoaded;
+      const secondaryLoaded = sourcePreference === "registry" ? latestLoaded : registryLoaded;
+      let release = pickEntry(primarySnapshot, app, platform);
+      if (!release && !primaryLoaded && secondaryLoaded) {
+        release = pickEntry(secondarySnapshot, app, platform);
+      }
+      const shouldHide = primaryLoaded && platform && !release;
       const pageRoute = card.dataset.pageRoute || "";
       const fallbackWebsite = card.dataset.fallbackWebsite || "";
       const summary = entrySummary(release, fallbackWebsite);
@@ -945,6 +957,7 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
       let registry = null;
       let latest = null;
       let registryLoaded = false;
+      let latestLoaded = false;
 
       try {
         const [registryResponse, latestResponse] = await Promise.all([
@@ -954,6 +967,7 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
 
         if (latestResponse.ok) {
           latest = await latestResponse.json();
+          latestLoaded = true;
         }
 
         if (registryResponse.ok) {
@@ -964,9 +978,8 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
         registry = null;
       }
 
-      const snapshot = registry || latest;
       document.querySelectorAll("[data-release-card]").forEach((card) => {
-        updateReleaseCard(card, snapshot, registryLoaded);
+        updateReleaseCard(card, registry, latest, registryLoaded, latestLoaded);
       });
     }
 
