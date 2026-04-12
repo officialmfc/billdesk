@@ -25,6 +25,7 @@ import type {
   DesktopProductRecord,
   DesktopQuoteCreateInput,
   DesktopQuoteRecord,
+  DesktopPendingRegistration,
   DesktopStockBatchCreateInput,
   DesktopStockOverview,
   DesktopUserCreateInput,
@@ -951,8 +952,11 @@ export function DesktopUsersPage({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [inviteTarget, setInviteTarget] = useState<DesktopUserRecord | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<DesktopUserRecord[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<DesktopPendingRegistration[]>([]);
   const [draft, setDraft] = useState<DesktopUserCreateInput>({
     authMode: "with_invite",
     email: "",
@@ -969,6 +973,7 @@ export function DesktopUsersPage({
     setLoading(true);
     try {
       setUsers(await window.managerDesktopApi.users.list());
+      setPendingInvites(await window.managerDesktopApi.users.listInvites());
     } catch (error) {
       onMessage({
         tone: "error",
@@ -982,6 +987,17 @@ export function DesktopUsersPage({
   useEffect(() => {
     void loadUsers();
   }, []);
+
+  const pendingInviteIds = useMemo(
+    () =>
+      new Set(
+        pendingInvites
+          .filter((row) => row.status === "invited" || row.status === "opened" || row.status === "approved_activation")
+          .map((row) => row.supabaseRecordId)
+          .filter((value): value is string => Boolean(value))
+      ),
+    [pendingInvites]
+  );
 
   const filteredUsers = useMemo(() => {
     const term = normalize(search);
@@ -1010,6 +1026,22 @@ export function DesktopUsersPage({
     setInviteResult(null);
   };
 
+  const openInviteForUser = (user: DesktopUserRecord) => {
+    setInviteTarget(user);
+    setInviteOpen(true);
+    setInvitePlatform("mobile");
+    setInviteResult(null);
+    setDraft({
+      authMode: "with_invite",
+      email: "",
+      fullName: user.name,
+      businessName: user.businessName ?? "",
+      phone: user.phone ?? "",
+      userType: user.userType,
+      defaultRole: user.defaultRole,
+    });
+  };
+
   const handleCreate = async () => {
     if (draft.fullName.trim().length < 2) {
       onMessage({ tone: "error", text: "Full name must be at least 2 characters." });
@@ -1033,18 +1065,26 @@ export function DesktopUsersPage({
           email: draft.email?.trim() || "",
           fullName: draft.fullName.trim(),
           businessName: draft.businessName?.trim() || null,
+          existingUserId: inviteTarget?.id ?? null,
           phone: draft.phone.trim() || null,
           userType: draft.userType,
           defaultRole: draft.defaultRole,
           requestedPlatform: invitePlatform,
         });
         setInviteResult(invite);
+        await loadUsers();
 
         try {
           await navigator.clipboard.writeText(invite.signupUrl);
-          onMessage({ tone: "success", text: "Invite created and copied to clipboard." });
+          onMessage({
+            tone: "success",
+            text: inviteTarget ? "Invite created, bound to the selected user, and copied." : "Invite created and copied to clipboard.",
+          });
         } catch {
-          onMessage({ tone: "success", text: "Invite created successfully." });
+          onMessage({
+            tone: "success",
+            text: inviteTarget ? "Invite created and bound to the selected user." : "Invite created successfully.",
+          });
         }
       } else {
         const created = await window.managerDesktopApi.users.create(draft);
@@ -1103,6 +1143,7 @@ export function DesktopUsersPage({
                 <th className="align-center">Type</th>
                 <th className="align-center">Role</th>
                 <th className="align-center">Access</th>
+                <th className="align-center">Invite</th>
               </tr>
             </thead>
             <tbody>
@@ -1116,15 +1157,30 @@ export function DesktopUsersPage({
                     <td className="align-center">{user.defaultRole}</td>
                     <td className="align-center">
                       <StatusChip
-                        label={user.authUserId ? "Login enabled" : "No login"}
-                        tone={user.authUserId ? "success" : "muted"}
+                        label={
+                          user.authUserId
+                            ? "Linked"
+                            : pendingInviteIds.has(user.id)
+                              ? "Invite pending"
+                              : "Unlinked"
+                        }
+                        tone={user.authUserId ? "success" : pendingInviteIds.has(user.id) ? "warning" : "muted"}
                       />
+                    </td>
+                    <td className="align-center">
+                      {!user.authUserId && !pendingInviteIds.has(user.id) ? (
+                        <button className="secondary-button" onClick={() => openInviteForUser(user)} type="button">
+                          Invite
+                        </button>
+                      ) : (
+                        <span className="muted-cell">—</span>
+                      )}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td className="ledger-empty-row" colSpan={6}>
+                  <td className="ledger-empty-row" colSpan={7}>
                     No users found.
                   </td>
                 </tr>
@@ -1256,6 +1312,126 @@ export function DesktopUsersPage({
             </button>
             <button className="primary-button" disabled={saving} onClick={() => void handleCreate()} type="button">
               {saving ? "Saving..." : draft.authMode === "with_invite" ? "Create Invite" : "Create User"}
+            </button>
+          </div>
+        </DesktopModal>
+      ) : null}
+
+      {inviteTarget && inviteOpen ? (
+        <DesktopModal
+          description={`Bind this invite to ${inviteTarget.businessName ? `${inviteTarget.businessName} (${inviteTarget.name})` : inviteTarget.name}.`}
+          onClose={() => {
+            setInviteOpen(false);
+            setInviteTarget(null);
+            resetDraft();
+          }}
+          title="Invite Existing User"
+        >
+          <div className="field-grid">
+            <div className="field-block" style={{ gridColumn: "1 / -1" }}>
+              <label className="field-label">Selected row</label>
+              <div className="content-card" style={{ padding: 12 }}>
+                <div className="cell-strong">
+                  {inviteTarget.businessName ? `${inviteTarget.businessName} (${inviteTarget.name})` : inviteTarget.name}
+                </div>
+                <div className="muted-cell">{inviteTarget.phone || "No phone"}</div>
+              </div>
+            </div>
+            <div className="field-block">
+              <label className="field-label">Email</label>
+              <input
+                className="text-input compact"
+                onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
+                type="email"
+                value={draft.email ?? ""}
+              />
+            </div>
+            <div className="field-block">
+              <label className="field-label">Invite opens on</label>
+              <select
+                className="text-input compact"
+                onChange={(event) => setInvitePlatform(event.target.value as "web" | "desktop" | "mobile")}
+                value={invitePlatform}
+              >
+                <option value="mobile">Mobile</option>
+                <option value="desktop">Desktop</option>
+                <option value="web">Web</option>
+              </select>
+            </div>
+            <div className="field-block">
+              <label className="field-label">Full Name</label>
+              <input
+                className="text-input compact"
+                onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))}
+                value={draft.fullName}
+              />
+            </div>
+            <div className="field-block">
+              <label className="field-label">Business Name</label>
+              <input
+                className="text-input compact"
+                onChange={(event) => setDraft((current) => ({ ...current, businessName: event.target.value }))}
+                value={draft.businessName ?? ""}
+              />
+            </div>
+            <div className="field-block">
+              <label className="field-label">Phone</label>
+              <input
+                className="text-input compact"
+                onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))}
+                value={draft.phone}
+              />
+            </div>
+            <div className="field-block">
+              <label className="field-label">User Type</label>
+              <select className="text-input compact" disabled value={inviteTarget.userType}>
+                <option value="business">Business</option>
+                <option value="vendor">Vendor</option>
+              </select>
+            </div>
+            <div className="field-block">
+              <label className="field-label">Default Role</label>
+              <select className="text-input compact" disabled value={inviteTarget.defaultRole}>
+                <option value="buyer">Buyer</option>
+                <option value="seller">Seller</option>
+              </select>
+            </div>
+            {inviteResult ? (
+              <div className="field-block" style={{ gridColumn: "1 / -1" }}>
+                <label className="field-label">Invite link</label>
+                <div className="content-card" style={{ padding: 14 }}>
+                  <div className="page-subtitle" style={{ marginBottom: 10 }}>
+                    Share this hosted auth link with the user.
+                  </div>
+                  <div style={{ fontSize: 13, marginBottom: 12, overflowWrap: "anywhere" }}>
+                    {inviteResult.signupUrl}
+                  </div>
+                  <button
+                    className="secondary-button"
+                    onClick={() => void navigator.clipboard.writeText(inviteResult.signupUrl)}
+                    type="button"
+                  >
+                    <Copy size={16} />
+                    Copy invite
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div className="dialog-actions">
+            <button
+              className="secondary-button"
+              onClick={() => {
+                setInviteOpen(false);
+                setInviteTarget(null);
+                resetDraft();
+              }}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button className="primary-button" disabled={saving} onClick={() => void handleCreate()} type="button">
+              {saving ? "Saving..." : "Create Invite"}
             </button>
           </div>
         </DesktopModal>

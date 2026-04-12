@@ -73,6 +73,9 @@ const userFormSchema = z.object({
 type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface UserCreationDialogProps {
+  existingUserId?: string | null;
+  existingUserLabel?: string | null;
+  inviteOnly?: boolean;
   onSuccess?: () => void;
   onCreated?: (user: LocalUser) => void;
   trigger?: React.ReactNode;
@@ -99,6 +102,9 @@ const baseDefaults: UserFormValues = {
 };
 
 export function UserCreationDialog({
+  existingUserId,
+  existingUserLabel,
+  inviteOnly,
   onSuccess,
   onCreated,
   trigger,
@@ -131,11 +137,11 @@ export function UserCreationDialog({
     () => ({
       ...baseDefaults,
       ...initialValues,
-      ...(initialAuthMode ? { authMode: initialAuthMode } : {}),
+      ...(inviteOnly ? { authMode: "with_invite" as const } : initialAuthMode ? { authMode: initialAuthMode } : {}),
       ...(lockedUserType ? { userType: lockedUserType } : {}),
       ...(lockedDefaultRole ? { defaultRole: lockedDefaultRole } : {}),
     }),
-    [initialAuthMode, initialValues, lockedDefaultRole, lockedUserType]
+    [initialAuthMode, initialValues, inviteOnly, lockedDefaultRole, lockedUserType]
   );
 
   const form = useForm<UserFormValues>({
@@ -159,6 +165,7 @@ export function UserCreationDialog({
           email: data.email?.trim() || "",
           fullName: data.fullName,
           businessName: data.businessName,
+          existingUserId,
           phone: data.phone,
           userType: data.userType,
           defaultRole: data.defaultRole,
@@ -215,54 +222,60 @@ export function UserCreationDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="authMode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Account Access</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      className="grid gap-3 sm:grid-cols-2"
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        if (value === "without_auth") {
-                          form.setValue("email", "");
-                        }
-                      }}
-                      value={field.value}
-                    >
-                      <Label
-                        htmlFor="create-user-with-invite"
-                        className={cn(
-                          "items-start rounded-lg border p-3",
-                          field.value === "with_invite" && "border-primary bg-primary/5"
-                        )}
+            {inviteOnly ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                Invite will be bound to {existingUserLabel || "the selected user row"}.
+              </div>
+            ) : (
+              <FormField
+                control={form.control}
+                name="authMode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Account Access</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        className="grid gap-3 sm:grid-cols-2"
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          if (value === "without_auth") {
+                            form.setValue("email", "");
+                          }
+                        }}
+                        value={field.value}
                       >
-                        <RadioGroupItem value="with_invite" id="create-user-with-invite" />
-                        <div className="space-y-1">
-                          <p className="font-medium">With invite</p>
-                        </div>
-                      </Label>
+                        <Label
+                          htmlFor="create-user-with-invite"
+                          className={cn(
+                            "items-start rounded-lg border p-3",
+                            field.value === "with_invite" && "border-primary bg-primary/5"
+                          )}
+                        >
+                          <RadioGroupItem value="with_invite" id="create-user-with-invite" />
+                          <div className="space-y-1">
+                            <p className="font-medium">With invite</p>
+                          </div>
+                        </Label>
 
-                      <Label
-                        htmlFor="create-user-without-auth"
-                        className={cn(
-                          "items-start rounded-lg border p-3",
-                          field.value === "without_auth" && "border-primary bg-primary/5"
-                        )}
-                      >
-                        <RadioGroupItem value="without_auth" id="create-user-without-auth" />
-                        <div className="space-y-1">
-                          <p className="font-medium">Without login</p>
-                        </div>
-                      </Label>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                        <Label
+                          htmlFor="create-user-without-auth"
+                          className={cn(
+                            "items-start rounded-lg border p-3",
+                            field.value === "without_auth" && "border-primary bg-primary/5"
+                          )}
+                        >
+                          <RadioGroupItem value="without_auth" id="create-user-without-auth" />
+                          <div className="space-y-1">
+                            <p className="font-medium">Without login</p>
+                          </div>
+                        </Label>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {authMode === "with_invite" ? (
               <>

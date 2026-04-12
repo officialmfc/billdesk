@@ -1836,18 +1836,40 @@ async function handleInvitesManager(request: Request): Promise<Response> {
   try {
     const actor = await resolveActorFromBearer(request.headers.get("authorization"));
     await assertInvitePermission(actor, "manager_invite");
-    const body = (await readJsonBody<{ email?: string; fullName?: string; requestedPlatform?: string }>(request)) as {
+    const body = (await readJsonBody<{
       email?: string;
       fullName?: string;
       requestedPlatform?: string;
+      existingUserId?: string;
+    }>(request)) as {
+      email?: string;
+      fullName?: string;
+      requestedPlatform?: string;
+      existingUserId?: string;
     };
     const invite = await createManagerInvite({
       actorAuthUserId: actor.authUserId,
       email: body.email?.trim() || "",
       fullName: body.fullName?.trim() || "",
       requestedPlatform: body.requestedPlatform?.trim() || "desktop",
+      existingUserId: body.existingUserId?.trim() || null,
     });
-    return json({ ok: true, ...invite });
+    return json({
+      ok: true,
+      invite_token: invite.inviteToken,
+      registration_id: invite.requestId,
+      requested_app: "manager",
+      requested_platform: body.requestedPlatform?.trim() || "desktop",
+      signup_path: invite.signupPath,
+      supabase_record_id: invite.supabaseRecordId,
+      inviteToken: invite.inviteToken,
+      registrationId: invite.requestId,
+      requestedApp: "manager",
+      requestedPlatform: body.requestedPlatform?.trim() || "desktop",
+      signupPath: invite.signupPath,
+      supabaseRecordId: invite.supabaseRecordId,
+      emailDelivery: invite.emailDelivery,
+    });
   } catch (error) {
     await captureAuthHubError(error, { route: "POST /api/invites/manager" }).catch(() => undefined);
     return json(
@@ -1869,6 +1891,7 @@ async function handleInvitesUser(request: Request): Promise<Response> {
       phone?: string;
       requestedPlatform?: string;
       requestedUserType?: string;
+      existingUserId?: string;
     }>(request)) as {
       businessName?: string;
       defaultRole?: string;
@@ -1877,6 +1900,7 @@ async function handleInvitesUser(request: Request): Promise<Response> {
       phone?: string;
       requestedPlatform?: string;
       requestedUserType?: string;
+      existingUserId?: string;
     };
     const invite = await createUserInvite({
       actorAuthUserId: actor.authUserId,
@@ -1887,8 +1911,24 @@ async function handleInvitesUser(request: Request): Promise<Response> {
       requestedPlatform: body.requestedPlatform?.trim() || "mobile",
       requestedDefaultRole: body.defaultRole?.trim() || "buyer",
       requestedUserType: body.requestedUserType?.trim() || "vendor",
+      existingUserId: body.existingUserId?.trim() || null,
     });
-    return json({ ok: true, ...invite });
+    return json({
+      ok: true,
+      invite_token: invite.inviteToken,
+      registration_id: invite.requestId,
+      requested_app: "user",
+      requested_platform: body.requestedPlatform?.trim() || "mobile",
+      signup_path: invite.signupPath,
+      supabase_record_id: invite.supabaseRecordId,
+      inviteToken: invite.inviteToken,
+      registrationId: invite.requestId,
+      requestedApp: "user",
+      requestedPlatform: body.requestedPlatform?.trim() || "mobile",
+      signupPath: invite.signupPath,
+      supabaseRecordId: invite.supabaseRecordId,
+      emailDelivery: invite.emailDelivery,
+    });
   } catch (error) {
     await captureAuthHubError(error, { route: "POST /api/invites/user" }).catch(() => undefined);
     return json(

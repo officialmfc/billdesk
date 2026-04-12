@@ -187,12 +187,28 @@ export type DesktopUserCreateInput = {
 };
 
 export type DesktopUserInvitationResult = {
-  inviteToken: string;
-  registrationId: string;
-  requestedApp: string;
-  requestedPlatform: string;
-  signupPath: string;
+  inviteToken?: string;
+  invite_token?: string;
+  registrationId?: string;
+  registration_id?: string;
+  requestedApp?: string;
+  requested_app?: string;
+  requestedPlatform?: string;
+  requested_platform?: string;
+  signupPath?: string;
+  signup_path?: string;
   signupUrl: string;
+  supabaseRecordId?: string | null;
+  supabase_record_id?: string | null;
+};
+
+export type DesktopPendingRegistration = {
+  id: string;
+  kind: string;
+  requestedApp: string | null;
+  requestedPlatform: string | null;
+  status: string;
+  supabaseRecordId: string | null;
 };
 
 export type DesktopProductRecord = {

@@ -4,6 +4,11 @@ import {
   resolveActorFromBearer,
 } from "@/lib/server/registration-workflow";
 import { captureAuthHubError } from "@/lib/server/logger";
+import { CORS_HEADERS } from "@/lib/server/cors";
+
+export async function OPTIONS() {
+  return new NextResponse(null, { headers: CORS_HEADERS });
+}
 
 type Body = {
   reason?: string;
@@ -29,14 +34,14 @@ export async function POST(request: Request) {
       reason: body.reason?.trim() || null,
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, { headers: CORS_HEADERS });
   } catch (error) {
     captureAuthHubError(error, {
       route: "POST /api/requests/[id]/reject",
     });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Could not reject request." },
-      { status: 400 }
+      { status: 400, headers: CORS_HEADERS }
     );
   }
 }

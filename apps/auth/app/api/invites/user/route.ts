@@ -11,7 +11,12 @@ type Body = {
   phone?: string;
   requestedPlatform?: string;
   requestedUserType?: string;
+  existingUserId?: string;
 };
+
+export async function OPTIONS() {
+  return new NextResponse(null, { headers: CORS_HEADERS });
+}
 
 export async function POST(request: Request) {
   try {
@@ -28,9 +33,28 @@ export async function POST(request: Request) {
       requestedPlatform: body.requestedPlatform?.trim() || "mobile",
       requestedDefaultRole: body.defaultRole?.trim() || "buyer",
       requestedUserType: body.requestedUserType?.trim() || "vendor",
+      existingUserId: body.existingUserId?.trim() || null,
     });
 
-    return NextResponse.json({ ok: true, ...invite }, { headers: CORS_HEADERS });
+    return NextResponse.json(
+      {
+        ok: true,
+        invite_token: invite.inviteToken,
+        registration_id: invite.requestId,
+        requested_app: "user",
+        requested_platform: body.requestedPlatform?.trim() || "mobile",
+        signup_path: invite.signupPath,
+        supabase_record_id: invite.supabaseRecordId,
+        inviteToken: invite.inviteToken,
+        registrationId: invite.requestId,
+        requestedApp: "user",
+        requestedPlatform: body.requestedPlatform?.trim() || "mobile",
+        signupPath: invite.signupPath,
+        supabaseRecordId: invite.supabaseRecordId,
+        emailDelivery: invite.emailDelivery,
+      },
+      { headers: CORS_HEADERS }
+    );
   } catch (error) {
     captureAuthHubError(error, {
       route: "POST /api/invites/user",

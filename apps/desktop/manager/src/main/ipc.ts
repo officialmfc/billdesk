@@ -33,6 +33,7 @@ import {
   createStockBatches,
   createUser,
   createUserInvitation,
+  listPendingRegistrations,
   getProductsList,
   getStockOverview,
   getUsersList,
@@ -78,6 +79,7 @@ const HANDLER_CHANNELS = [
   "quotes:get-overview",
   "quotes:create",
   "users:list",
+  "users:list-invites",
   "users:create",
   "users:create-invite",
   "products:list",
@@ -154,6 +156,10 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle("users:list", async (): Promise<DesktopUserRecord[]> => getUsersList());
   ipcMain.handle(
+    "users:list-invites",
+    async () => listPendingRegistrations()
+  );
+  ipcMain.handle(
     "users:create",
     async (_event, payload: DesktopUserCreateInput): Promise<DesktopUserRecord> =>
       createUser(payload)
@@ -163,13 +169,14 @@ export function registerIpcHandlers(): void {
     async (
       _event,
       payload: {
-        email: string;
-        fullName: string;
-        businessName?: string | null;
-        phone?: string | null;
-        userType: "vendor" | "business";
-        defaultRole: "buyer" | "seller";
-        requestedPlatform?: "web" | "desktop" | "mobile";
+      email: string;
+      fullName: string;
+      businessName?: string | null;
+      existingUserId?: string | null;
+      phone?: string | null;
+      userType: "vendor" | "business";
+      defaultRole: "buyer" | "seller";
+      requestedPlatform?: "web" | "desktop" | "mobile";
       }
     ): Promise<DesktopUserInvitationResult> => createUserInvitation(payload)
   );

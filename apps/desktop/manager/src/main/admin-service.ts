@@ -4,6 +4,7 @@ import type {
   DesktopStockBatchCreateInput,
   DesktopStockBatchRecord,
   DesktopStockOverview,
+  DesktopPendingRegistration,
   DesktopUserCreateInput,
   DesktopUserInvitationResult,
   DesktopUserRecord,
@@ -25,11 +26,18 @@ type UserRow = {
 };
 
 type InvitationResult = {
+  inviteToken?: string;
   invite_token: string;
+  registrationId?: string;
   registration_id: string;
+  requestedApp?: string;
   requested_app: string;
+  requestedPlatform?: string;
   requested_platform: string;
+  signupPath?: string;
   signup_path: string;
+  supabaseRecordId?: string | null;
+  supabase_record_id?: string | null;
 };
 
 function authHubBaseUrl(): string {
@@ -63,6 +71,23 @@ async function postAuthHubJson<T>(path: string, body: Record<string, unknown>): 
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+  });
+
+  const payload = (await response.json()) as { error?: string } & T;
+  if (!response.ok) {
+    throw new Error(payload.error || "Request failed.");
+  }
+
+  return payload;
+}
+
+async function getAuthHubJson<T>(path: string): Promise<T> {
+  const token = await getAuthHubToken();
+  const response = await fetch(`${authHubBaseUrl()}${path}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   });
 
   const payload = (await response.json()) as { error?: string } & T;
@@ -194,6 +219,7 @@ export async function createUserInvitation(input: {
   email: string;
   fullName: string;
   businessName?: string | null;
+  existingUserId?: string | null;
   phone?: string | null;
   userType: "vendor" | "business";
   defaultRole: "buyer" | "seller";
@@ -203,6 +229,7 @@ export async function createUserInvitation(input: {
     email: input.email.trim(),
     fullName: input.fullName.trim(),
     businessName: input.businessName?.trim() || null,
+    existingUserId: input.existingUserId?.trim() || null,
     phone: input.phone?.trim() || null,
     userType: input.userType,
     defaultRole: input.defaultRole,
@@ -217,7 +244,28 @@ export async function createUserInvitation(input: {
     requestedPlatform: data.requested_platform,
     signupPath: data.signup_path,
     signupUrl: new URL(data.signup_path, authHubBaseUrl()).toString(),
+    supabaseRecordId: data.supabase_record_id ?? data.supabaseRecordId ?? null,
   };
+}
+
+export async function listPendingRegistrations(): Promise<DesktopPendingRegistration[]> {
+  const result = await getAuthHubJson<{ rows: Array<{
+    id: string;
+    kind: string;
+    requested_app: string | null;
+    requested_platform: string | null;
+    status: string;
+    supabase_record_id: string | null;
+  }> }>("/api/requests");
+
+  return (result.rows ?? []).map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    requestedApp: row.requested_app,
+    requestedPlatform: row.requested_platform,
+    status: row.status,
+    supabaseRecordId: row.supabase_record_id,
+  }));
 }
 
 export async function getProductsList(): Promise<DesktopProductRecord[]> {

@@ -101,6 +101,7 @@ export interface CreateUserInvitationParams {
   p_email: string;
   p_full_name: string;
   p_business_name?: string | null;
+  p_existing_user_id?: string | null;
   p_phone?: string | null;
   p_user_type: 'vendor' | 'business';
   p_default_role: 'buyer' | 'seller';
@@ -108,11 +109,18 @@ export interface CreateUserInvitationParams {
 }
 
 export interface InvitationResult {
+  inviteToken?: string;
   invite_token: string;
+  registrationId?: string;
   registration_id: string;
+  requestedApp?: string;
   requested_app: string;
+  requestedPlatform?: string;
   requested_platform: string;
+  signupPath?: string;
   signup_path: string;
+  supabaseRecordId?: string | null;
+  supabase_record_id?: string | null;
 }
 
 function authHubBaseUrl(): string {
@@ -429,11 +437,46 @@ export class RPCService {
       email: params.p_email,
       fullName: params.p_full_name,
       businessName: params.p_business_name,
+      existingUserId: params.p_existing_user_id,
       phone: params.p_phone,
       userType: params.p_user_type,
       defaultRole: params.p_default_role,
       requestedPlatform: params.p_requested_platform ?? 'mobile',
     });
+  }
+
+  /**
+   * List pending auth hub registrations
+   */
+  async listPendingRegistrations(): Promise<Array<{
+    id: string;
+    kind: string;
+    requested_app: string | null;
+    requested_platform: string | null;
+    status: string;
+    supabase_record_id: string | null;
+  }>> {
+    const response = await fetch(`${authHubBaseUrl()}/api/requests`, {
+      headers: {
+        Authorization: `Bearer ${await this.getAuthHubToken()}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const payload = (await response.json()) as { error?: string; rows?: Array<{
+      id: string;
+      kind: string;
+      requested_app: string | null;
+      requested_platform: string | null;
+      status: string;
+      supabase_record_id: string | null;
+    }> };
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Request failed.");
+    }
+
+    return payload.rows ?? [];
   }
 
   /**

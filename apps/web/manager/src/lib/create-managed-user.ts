@@ -20,17 +20,25 @@ export interface CreateManagedUserInvitationInput {
   defaultRole: ManagedDefaultRole;
   email: string;
   fullName: string;
+  existingUserId?: string | null;
   phone?: string;
   requestedPlatform?: "web" | "desktop" | "mobile";
   userType: ManagedUserType;
 }
 
 export interface ManagedUserInvitationResult {
+  inviteToken?: string;
   invite_token: string;
+  registrationId?: string;
   registration_id: string;
+  requestedApp?: string;
   requested_app: string;
+  requestedPlatform?: string;
   requested_platform: string;
+  signupPath?: string;
   signup_path: string;
+  supabaseRecordId?: string | null;
+  supabase_record_id?: string | null;
 }
 
 function authHubBaseUrl(): string {
@@ -135,6 +143,7 @@ export async function createManagedUserInvitation(
     email: input.email.trim(),
     fullName: input.fullName.trim(),
     businessName: input.businessName?.trim() || null,
+    existingUserId: input.existingUserId?.trim() || null,
     phone: input.phone?.trim() || null,
     userType: input.userType,
     defaultRole: input.defaultRole,

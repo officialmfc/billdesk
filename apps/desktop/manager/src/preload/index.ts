@@ -85,11 +85,14 @@ const api = {
       email: string;
       fullName: string;
       businessName?: string | null;
+      existingUserId?: string | null;
       phone?: string | null;
       userType: "vendor" | "business";
       defaultRole: "buyer" | "seller";
       requestedPlatform?: "web" | "desktop" | "mobile";
     }): Promise<DesktopUserInvitationResult> => ipcRenderer.invoke("users:create-invite", payload),
+    listInvites: (): Promise<import("../shared/contracts").DesktopPendingRegistration[]> =>
+      ipcRenderer.invoke("users:list-invites"),
   },
   products: {
     list: (): Promise<DesktopProductRecord[]> => ipcRenderer.invoke("products:list"),

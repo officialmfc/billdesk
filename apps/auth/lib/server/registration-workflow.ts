@@ -31,6 +31,8 @@ export type RegistrationRow = {
   message: string | null;
   payload_json: string;
   phone: string | null;
+  supabase_auth_user_id: string | null;
+  supabase_record_id: string | null;
   requested_platform: string | null;
   status: string;
   target_app: AppSlug;
@@ -42,6 +44,7 @@ export type InviteContext = {
   email: string;
   full_name: string | null;
   invite_expires_at: string | null;
+  supabase_record_id: string | null;
   registration_id: string;
   registration_kind: InviteKind | "self_signup";
   requested_app: AppSlug | null;
@@ -150,6 +153,7 @@ export async function getInviteContextByToken(
           business_name,
           payload_json,
           requested_platform,
+          supabase_record_id,
           activation_expires_at
         FROM registration_requests
         WHERE activation_token_hash = ?
@@ -178,6 +182,7 @@ export async function getInviteContextByToken(
     requested_platform: row.requested_platform,
     requested_staff_role: typeof payload.requested_staff_role === "string" ? payload.requested_staff_role : null,
     requested_user_type: typeof payload.requested_user_type === "string" ? payload.requested_user_type : null,
+    supabase_record_id: row.supabase_record_id,
   };
 }
 
@@ -194,6 +199,57 @@ function safeParsePayload(value: string | null): Record<string, unknown> {
   }
 }
 
+type PublicUserRecord = {
+  auth_user_id: string | null;
+  id: string;
+};
+
+async function loadPublicUserRecord(userId: string): Promise<PublicUserRecord | null> {
+  const supabase = await createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, auth_user_id")
+    .eq("id", userId)
+    .maybeSingle<PublicUserRecord>();
+
+  if (error) {
+    throw new Error(error.message || "Could not load the selected user row.");
+  }
+
+  return data ?? null;
+}
+
+async function bindAuthAccountToExistingUserRow(params: {
+  authUserId: string;
+  existingUserId: string;
+}): Promise<void> {
+  const supabase = await createSupabaseAdminClient();
+  const userRow = await loadPublicUserRecord(params.existingUserId);
+
+  if (!userRow) {
+    throw new Error("The selected user row no longer exists.");
+  }
+
+  if (userRow.auth_user_id && userRow.auth_user_id !== params.authUserId) {
+    throw new Error("The selected user row is already linked to another login account.");
+  }
+
+  if (userRow.auth_user_id === params.authUserId) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("users")
+    .update({
+      auth_user_id: params.authUserId,
+    })
+    .eq("id", params.existingUserId);
+
+  if (error) {
+    throw new Error(error.message || "Could not bind the invite to the selected user row.");
+  }
+}
+
 async function createInviteRecord(params: {
   actorAuthUserId: string;
   email: string;
@@ -204,7 +260,14 @@ async function createInviteRecord(params: {
   payload: Record<string, unknown>;
   businessName?: string | null;
   phone?: string | null;
-}): Promise<{ inviteToken: string; requestId: string; signupPath: string; signup_path: string }> {
+  existingUserId?: string | null;
+}): Promise<{
+  inviteToken: string;
+  requestId: string;
+  signupPath: string;
+  signup_path: string;
+  supabaseRecordId: string | null;
+}> {
   const env = await getAuthHubEnv();
   const requestId = crypto.randomUUID();
   const { token: inviteToken, hash: activationTokenHash } = await createTokenHashPair();
@@ -212,25 +275,51 @@ async function createInviteRecord(params: {
   const email = normalizeEmail(params.email);
   const fullName = normalizeRequiredText(params.fullName, "Full name");
   const payload = JSON.stringify(params.payload);
+  const existingUserId = normalizeOptionalText(params.existingUserId);
   const signupPath = buildSignupPath({
     kind: params.kind,
     requested_app: params.requestedApp,
     requested_platform: params.requestedPlatform,
     invite_token: inviteToken,
   });
-  const existingInvite = await env.auth_d1_binding
-    .prepare(
-      `
-        SELECT id
-        FROM registration_requests
-        WHERE email = ?
-          AND kind = ?
-          AND status IN ('invited', 'opened', 'pending_review', 'approved_activation')
-        LIMIT 1
-      `
-    )
-    .bind(email, params.kind)
-    .first<{ id: string }>();
+  const existingInvite = existingUserId
+    ? await env.auth_d1_binding
+        .prepare(
+          `
+            SELECT id
+            FROM registration_requests
+            WHERE supabase_record_id = ?
+              AND kind = ?
+              AND status IN ('invited', 'opened', 'pending_review', 'approved_activation')
+            LIMIT 1
+          `
+        )
+        .bind(existingUserId, params.kind)
+        .first<{ id: string }>()
+    : await env.auth_d1_binding
+        .prepare(
+          `
+            SELECT id
+            FROM registration_requests
+            WHERE email = ?
+              AND kind = ?
+              AND status IN ('invited', 'opened', 'pending_review', 'approved_activation')
+            LIMIT 1
+          `
+        )
+        .bind(email, params.kind)
+        .first<{ id: string }>();
+
+  if (existingUserId) {
+    const userRow = await loadPublicUserRecord(existingUserId);
+    if (!userRow) {
+      throw new Error("The selected user row no longer exists.");
+    }
+
+    if (userRow.auth_user_id) {
+      throw new Error("The selected user row already has login access.");
+    }
+  }
 
   const activeRequestId = existingInvite?.id || requestId;
 
@@ -250,6 +339,7 @@ async function createInviteRecord(params: {
             payload_json = ?,
             requested_platform = ?,
             invited_by_auth_user_id = ?,
+            supabase_record_id = COALESCE(?, supabase_record_id),
             activation_token_hash = ?,
             activation_expires_at = ?,
             rejected_at = NULL,
@@ -269,6 +359,7 @@ async function createInviteRecord(params: {
         payload,
         params.requestedPlatform,
         params.actorAuthUserId,
+        existingUserId,
         activationTokenHash,
         expiresAt,
         activeRequestId
@@ -291,12 +382,13 @@ async function createInviteRecord(params: {
             payload_json,
             requested_platform,
             invited_by_auth_user_id,
+            supabase_record_id,
             activation_token_hash,
             activation_expires_at,
             created_at,
             updated_at
           )
-          VALUES (?, ?, ?, 'invited', ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          VALUES (?, ?, ?, 'invited', ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         `
       )
       .bind(
@@ -310,6 +402,7 @@ async function createInviteRecord(params: {
         payload,
         params.requestedPlatform,
         params.actorAuthUserId,
+        existingUserId,
         activationTokenHash,
         expiresAt
       )
@@ -337,6 +430,7 @@ async function createInviteRecord(params: {
         requested_platform: params.requestedPlatform,
         kind: params.kind,
         invite_reissued: Boolean(existingInvite),
+        supabase_record_id: existingUserId,
       })
     )
     .run();
@@ -356,6 +450,7 @@ async function createInviteRecord(params: {
       ...params.payload,
       invite_kind: params.kind,
       requested_platform: params.requestedPlatform,
+      supabase_record_id: existingUserId,
     },
     platform: params.requestedPlatform as "web" | "desktop" | "mobile",
   });
@@ -365,6 +460,7 @@ async function createInviteRecord(params: {
     requestId: activeRequestId,
     signupPath,
     signup_path: signupPath,
+    supabaseRecordId: existingUserId,
   };
 }
 
@@ -377,11 +473,13 @@ export async function createUserInvite(params: {
   requestedPlatform: string;
   requestedDefaultRole: string;
   requestedUserType: string;
+  existingUserId?: string | null;
 }): Promise<{
   inviteToken: string;
   requestId: string;
   signupPath: string;
   signup_path: string;
+  supabaseRecordId: string | null;
   emailDelivery: { ok: true } | { ok: false; error: ReturnType<typeof getZeptoMailErrorDetails> };
 }> {
   const result = await createInviteRecord({
@@ -399,6 +497,7 @@ export async function createUserInvite(params: {
     },
     businessName: params.businessName,
     phone: params.phone,
+    existingUserId: params.existingUserId,
   });
 
   const emailDelivery = await sendEmailNonBlocking(
@@ -424,11 +523,13 @@ export async function createManagerInvite(params: {
   email: string;
   fullName: string;
   requestedPlatform: string;
+  existingUserId?: string | null;
 }): Promise<{
   inviteToken: string;
   requestId: string;
   signupPath: string;
   signup_path: string;
+  supabaseRecordId: string | null;
   emailDelivery: { ok: true } | { ok: false; error: ReturnType<typeof getZeptoMailErrorDetails> };
 }> {
   const result = await createInviteRecord({
@@ -441,6 +542,7 @@ export async function createManagerInvite(params: {
     payload: {
       requested_staff_role: "manager",
     },
+    existingUserId: params.existingUserId,
   });
 
   const emailDelivery = await sendEmailNonBlocking(
@@ -505,6 +607,34 @@ export async function registerInviteAccount(params: {
     throw new Error("Could not create the invited account.");
   }
 
+  if (inviteContext.supabase_record_id) {
+    try {
+      await bindAuthAccountToExistingUserRow({
+        authUserId,
+        existingUserId: inviteContext.supabase_record_id,
+      });
+    } catch (error) {
+      await (supabase.auth as any).admin.deleteUser(authUserId).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  const env = await getAuthHubEnv();
+  await env.auth_d1_binding
+    .prepare(
+      `
+        UPDATE registration_requests
+        SET
+          status = 'activated',
+          supabase_auth_user_id = ?,
+          activated_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `
+    )
+    .bind(authUserId, inviteContext.registration_id)
+    .run();
+
   await policySyncAuthAccountDirectoryLogin({
     app: inviteContext.requested_app ?? "user",
     authUserId,
@@ -524,6 +654,7 @@ export async function registerInviteAccount(params: {
       requested_staff_role: inviteContext.requested_staff_role,
       requested_user_type: inviteContext.requested_user_type,
       business_name: inviteContext.business_name,
+      supabase_record_id: inviteContext.supabase_record_id,
     },
     platform: (inviteContext.requested_platform as "web" | "desktop" | "mobile" | null) ?? null,
     businessName: inviteContext.business_name,
@@ -558,9 +689,9 @@ export async function listPendingRegistrations(): Promise<RegistrationRow[]> {
           activation_token_hash,
           activation_expires_at,
           approved_at,
-          created_at,
-          invited_by_auth_user_id,
-          status
+          supabase_auth_user_id,
+          supabase_record_id,
+          created_at
         FROM registration_requests
         WHERE status IN ('pending_review', 'invited', 'opened', 'approved_activation')
         ORDER BY created_at DESC

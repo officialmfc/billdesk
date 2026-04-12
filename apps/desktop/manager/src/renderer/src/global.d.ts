@@ -83,11 +83,13 @@ declare global {
           email: string;
           fullName: string;
           businessName?: string | null;
+          existingUserId?: string | null;
           phone?: string | null;
           userType: "vendor" | "business";
           defaultRole: "buyer" | "seller";
           requestedPlatform?: "web" | "desktop" | "mobile";
         }): Promise<DesktopUserInvitationResult>;
+        listInvites(): Promise<import("../../shared/contracts").DesktopPendingRegistration[]>;
       };
       products: {
         list(): Promise<DesktopProductRecord[]>;
