@@ -6,6 +6,10 @@ function statusEl() {
   return document.querySelector("[data-status]");
 }
 
+function loginStatusEl() {
+  return document.querySelector("[data-login-status]");
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -36,6 +40,27 @@ function clearStatus() {
   el.hidden = true;
 }
 
+function setLoginStatus(message, tone = "info") {
+  const el = loginStatusEl();
+  if (!el) {
+    return;
+  }
+
+  el.textContent = message;
+  el.dataset.tone = tone;
+  el.hidden = false;
+}
+
+function clearLoginStatus() {
+  const el = loginStatusEl();
+  if (!el) {
+    return;
+  }
+
+  el.textContent = "";
+  el.hidden = true;
+}
+
 function setBusy(container, busy) {
   if (!container) {
     return;
@@ -50,6 +75,33 @@ function setBusy(container, busy) {
         element.removeAttribute("aria-busy");
       }
     }
+  }
+}
+
+function setupPasswordToggles() {
+  for (const button of document.querySelectorAll("[data-password-toggle]")) {
+    if (button.dataset.passwordToggleBound === "1") {
+      continue;
+    }
+
+    button.dataset.passwordToggleBound = "1";
+    button.addEventListener("click", () => {
+      const targetId = button.getAttribute("data-password-toggle");
+      if (!targetId) {
+        return;
+      }
+
+      const input = document.getElementById(targetId);
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+
+      const nextVisible = input.type === "password";
+      input.type = nextVisible ? "text" : "password";
+      button.textContent = nextVisible ? "Hide" : "Show";
+      button.setAttribute("aria-label", nextVisible ? "Hide password" : "Show password");
+      button.setAttribute("aria-pressed", nextVisible ? "true" : "false");
+    });
   }
 }
 
@@ -108,6 +160,174 @@ function setActionButtonsEnabled(enabled) {
   if (resetRateLimitsButton instanceof HTMLButtonElement) {
     resetRateLimitsButton.disabled = !enabled;
   }
+}
+
+function getLoginForm() {
+  return getQueryElement("#admin-login-form");
+}
+
+function getWorkspaceSection() {
+  return getQueryElement("[data-admin-workspace]");
+}
+
+function getLogoutButton() {
+  return getQueryElement("[data-admin-logout]");
+}
+
+function getAuthStateLabel() {
+  return getQueryElement("[data-admin-auth-state]");
+}
+
+function getAuthNote() {
+  return getQueryElement("[data-admin-access-email]");
+}
+
+function setWorkspaceVisible(visible) {
+  const workspace = getWorkspaceSection();
+  if (workspace instanceof HTMLElement) {
+    workspace.hidden = !visible;
+  }
+}
+
+function setLoginPanelVisible(visible) {
+  const loginForm = getLoginForm();
+  const panel = loginForm instanceof HTMLElement ? loginForm.closest(".auth-card") : null;
+
+  if (panel instanceof HTMLElement) {
+    panel.hidden = !visible;
+  }
+}
+
+function getSessionLabel(session) {
+  if (!session?.authenticated) {
+    return "Not signed in";
+  }
+
+  if (session.mode === "access") {
+    return "Cloudflare Access";
+  }
+
+  if (session.mode === "password") {
+    return "Preset password";
+  }
+
+  if (session.mode === "dev") {
+    return "Local development";
+  }
+
+  return "Authenticated";
+}
+
+function getSessionNote(session) {
+  if (!session?.authenticated) {
+    if (session?.passwordConfigured === false) {
+      return "Set AUTH_ADMIN_PASSWORD in the auth-admin Pages environment to enable password login.";
+    }
+
+    return "Use the preset admin password or Cloudflare Access.";
+  }
+
+  if (session.mode === "access" && typeof session.accessEmail === "string" && session.accessEmail.trim()) {
+    return `Signed in via Cloudflare Access as ${session.accessEmail.trim()}.`;
+  }
+
+  if (session.mode === "password") {
+    return "Signed in with the preset admin password.";
+  }
+
+  if (session.mode === "dev") {
+    return "Signed in on localhost for development.";
+  }
+
+  return "Authenticated administrator session active.";
+}
+
+function applyAdminSession(session) {
+  const authenticated = Boolean(session?.authenticated);
+  const logoutButton = getLogoutButton();
+  const authStateLabel = getAuthStateLabel();
+  const authNote = getAuthNote();
+
+  if (authStateLabel instanceof HTMLElement) {
+    authStateLabel.textContent = getSessionLabel(session);
+  }
+
+  if (authNote instanceof HTMLElement) {
+    authNote.textContent = getSessionNote(session);
+  }
+
+  if (logoutButton instanceof HTMLButtonElement) {
+    logoutButton.classList.toggle("hidden", !authenticated);
+  }
+
+  setLoginPanelVisible(!authenticated);
+  setWorkspaceVisible(authenticated);
+  setActionButtonsEnabled(authenticated);
+
+  if (!authenticated) {
+    renderEmptyState();
+  }
+}
+
+async function fetchAdminSession() {
+  const response = await fetch("/admin/api/session", {
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error || "Could not load the admin session.");
+    error.name = "AdminSessionLoadError";
+    throw error;
+  }
+
+  return payload;
+}
+
+async function syncAdminSession() {
+  const session = await fetchAdminSession();
+  applyAdminSession(session);
+  return session;
+}
+
+async function submitAdminLogin(password) {
+  const response = await fetch("/admin/api/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ password }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error || "Could not sign in.");
+    error.name = response.status === 401 || response.status === 403 ? "AdminLoginError" : "Error";
+    throw error;
+  }
+
+  return payload;
+}
+
+async function submitAdminLogout() {
+  const response = await fetch("/admin/api/logout", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error || "Could not sign out.");
+    error.name = "AdminAuthRequiredError";
+    throw error;
+  }
+
+  return payload;
 }
 
 function renderEmptyState() {
@@ -274,6 +494,7 @@ async function fetchAdminAccountSummary() {
   }
 
   const response = await fetch(url.toString(), {
+    credentials: "same-origin",
     headers: {
       Accept: "application/json",
     },
@@ -281,7 +502,9 @@ async function fetchAdminAccountSummary() {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error || "Could not load the account.");
+    const error = new Error(payload.error || "Could not load the account.");
+    error.name = response.status === 401 || response.status === 403 ? "AdminAuthRequiredError" : "Error";
+    throw error;
   }
 
   return payload;
@@ -299,6 +522,7 @@ async function refreshAdminView() {
 
 async function postAdminAction(pathname, body) {
   const response = await fetch(pathname, {
+    credentials: "same-origin",
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -309,28 +533,37 @@ async function postAdminAction(pathname, body) {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error || "Request failed.");
+    const error = new Error(payload.error || "Request failed.");
+    error.name = response.status === 401 || response.status === 403 ? "AdminAuthRequiredError" : "Error";
+    throw error;
   }
 
   return payload;
 }
 
 async function bootAdmin() {
-  const form = getQueryElement("#admin-form");
+  setupPasswordToggles();
+
+  const searchForm = getQueryElement("#admin-form");
+  const loginForm = getLoginForm();
+  const loginPasswordInput = getQueryElement("#admin-password");
+  const loginButton = loginForm instanceof HTMLFormElement ? loginForm.querySelector('button[type="submit"]') : null;
+  const logoutButton = getLogoutButton();
   const emailInput = getQueryElement("#admin-email");
   const appSelect = getQueryElement("#admin-app");
-  const accessEmailEl = getQueryElement("[data-admin-access-email]");
   const revokeAllButton = getQueryElement("[data-admin-revoke-all]");
   const resetRateLimitsButton = getQueryElement("[data-admin-reset-rate-limits]");
   const devicesEl = getQueryElement("[data-admin-devices]");
 
-  if (accessEmailEl instanceof HTMLElement && typeof cfg.accessEmail === "string" && cfg.accessEmail.trim()) {
-    accessEmailEl.textContent = cfg.accessEmail.trim();
-  }
-
   const url = new URL(window.location.href);
   const initialEmail = url.searchParams.get("email")?.trim() || "";
   const initialApp = url.searchParams.get("app")?.trim() || "";
+  let currentSession = {
+    accessEmail: null,
+    authenticated: false,
+    mode: null,
+    passwordConfigured: false,
+  };
 
   if (emailInput instanceof HTMLInputElement && initialEmail) {
     emailInput.value = initialEmail;
@@ -340,16 +573,46 @@ async function bootAdmin() {
     appSelect.value = initialApp;
   }
 
+  setLoginPanelVisible(true);
+  setWorkspaceVisible(false);
+  setActionButtonsEnabled(false);
   renderEmptyState();
 
+  async function recoverFromAdminAuthError() {
+    try {
+      currentSession = await syncAdminSession();
+      if (!currentSession.authenticated) {
+        setLoginStatus(
+          currentSession.passwordConfigured
+            ? "Your admin session expired. Sign in again."
+            : "Set AUTH_ADMIN_PASSWORD in the auth-admin Pages environment to enable password login.",
+          currentSession.passwordConfigured ? "error" : "error"
+        );
+      }
+    } catch (error) {
+      currentSession = {
+        accessEmail: null,
+        authenticated: false,
+        mode: null,
+        passwordConfigured: false,
+      };
+      applyAdminSession(currentSession);
+      setLoginStatus(error instanceof Error ? error.message : "Your admin session expired. Sign in again.", "error");
+    }
+  }
+
   const runSearch = async () => {
-    if (!(form instanceof HTMLFormElement)) {
+    if (!(searchForm instanceof HTMLFormElement)) {
+      return;
+    }
+
+    if (!currentSession.authenticated) {
       return;
     }
 
     clearStatus();
-    setBusy(form, true);
-    const resetLabel = setButtonLabel(form.querySelector('button[type="submit"]'), "Searching...");
+    setBusy(searchForm, true);
+    const resetLabel = setButtonLabel(searchForm.querySelector('button[type="submit"]'), "Searching...");
 
     try {
       const payload = await refreshAdminView();
@@ -358,21 +621,25 @@ async function bootAdmin() {
         "success"
       );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Could not load account data.", "error");
-      renderEmptyState();
+      if (error instanceof Error && error.name === "AdminAuthRequiredError") {
+        await recoverFromAdminAuthError();
+      } else {
+        setStatus(error instanceof Error ? error.message : "Could not load account data.", "error");
+        renderEmptyState();
+      }
     } finally {
       resetLabel();
-      setBusy(form, false);
+      setBusy(searchForm, false);
     }
   };
 
-  form?.addEventListener("submit", (event) => {
+  searchForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     void runSearch();
   });
 
   revokeAllButton?.addEventListener("click", async () => {
-    if (!(form instanceof HTMLFormElement)) {
+    if (!(searchForm instanceof HTMLFormElement)) {
       return;
     }
 
@@ -382,20 +649,24 @@ async function bootAdmin() {
 
     try {
       clearStatus();
-      setBusy(form, true);
+      setBusy(searchForm, true);
       const query = getCurrentQuery();
       await postAdminAction("/admin/api/devices/revoke-all", query);
       setStatus("All active devices revoked.", "success");
       await refreshAdminView();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Could not revoke devices.", "error");
+      if (error instanceof Error && error.name === "AdminAuthRequiredError") {
+        await recoverFromAdminAuthError();
+      } else {
+        setStatus(error instanceof Error ? error.message : "Could not revoke devices.", "error");
+      }
     } finally {
-      setBusy(form, false);
+      setBusy(searchForm, false);
     }
   });
 
   resetRateLimitsButton?.addEventListener("click", async () => {
-    if (!(form instanceof HTMLFormElement)) {
+    if (!(searchForm instanceof HTMLFormElement)) {
       return;
     }
 
@@ -405,16 +676,20 @@ async function bootAdmin() {
 
     try {
       clearStatus();
-      setBusy(form, true);
+      setBusy(searchForm, true);
       const query = getCurrentQuery();
       const payload = await postAdminAction("/admin/api/rate-limits/reset", query);
       const resetCount = typeof payload.reset_count === "number" ? payload.reset_count : 0;
       setStatus(`Reset ${resetCount} rate-limit entr${resetCount === 1 ? "y" : "ies"}.`, "success");
       await refreshAdminView();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Could not reset rate limits.", "error");
+      if (error instanceof Error && error.name === "AdminAuthRequiredError") {
+        await recoverFromAdminAuthError();
+      } else {
+        setStatus(error instanceof Error ? error.message : "Could not reset rate limits.", "error");
+      }
     } finally {
-      setBusy(form, false);
+      setBusy(searchForm, false);
     }
   });
 
@@ -425,13 +700,13 @@ async function bootAdmin() {
     }
 
     const deviceId = target.getAttribute("data-admin-revoke-device");
-    if (!deviceId || !(form instanceof HTMLFormElement)) {
+    if (!deviceId || !(searchForm instanceof HTMLFormElement)) {
       return;
     }
 
     try {
       clearStatus();
-      setBusy(form, true);
+      setBusy(searchForm, true);
       const query = getCurrentQuery();
       await postAdminAction("/admin/api/devices/revoke", {
         ...query,
@@ -440,14 +715,101 @@ async function bootAdmin() {
       setStatus("Device revoked.", "success");
       await refreshAdminView();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Could not revoke device.", "error");
+      if (error instanceof Error && error.name === "AdminAuthRequiredError") {
+        await recoverFromAdminAuthError();
+      } else {
+        setStatus(error instanceof Error ? error.message : "Could not revoke device.", "error");
+      }
     } finally {
-      setBusy(form, false);
+      setBusy(searchForm, false);
     }
   });
 
-  if (initialEmail) {
-    await runSearch();
+  loginForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!(loginPasswordInput instanceof HTMLInputElement)) {
+      return;
+    }
+
+    clearLoginStatus();
+    setBusy(loginForm, true);
+    const resetLabel = setButtonLabel(loginButton, "Signing in...");
+
+    try {
+      const session = await submitAdminLogin(loginPasswordInput.value);
+      currentSession = session;
+      applyAdminSession(session);
+      loginPasswordInput.value = "";
+      if (initialEmail) {
+        await runSearch();
+      } else {
+        renderEmptyState();
+      }
+    } catch (error) {
+      setLoginStatus(error instanceof Error ? error.message : "Could not sign in.", "error");
+    } finally {
+      resetLabel();
+      setBusy(loginForm, false);
+    }
+  });
+
+  logoutButton?.addEventListener("click", async () => {
+    if (!(logoutButton instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    if (!window.confirm("Sign out of this admin session?")) {
+      return;
+    }
+
+    clearLoginStatus();
+    const sessionActions = logoutButton.closest(".session-actions");
+    setBusy(sessionActions || logoutButton, true);
+    const resetLabel = setButtonLabel(logoutButton, "Signing out...");
+
+    try {
+      const session = await submitAdminLogout();
+      currentSession = session;
+      applyAdminSession(session);
+      if (!session.authenticated) {
+        setLoginStatus("Signed out of the preset password session.", "success");
+        renderEmptyState();
+      } else {
+        setLoginStatus("Cloudflare Access remains active on this request.", "info");
+      }
+    } catch (error) {
+      setLoginStatus(error instanceof Error ? error.message : "Could not sign out.", "error");
+    } finally {
+      resetLabel();
+      setBusy(sessionActions || logoutButton, false);
+    }
+  });
+
+  try {
+    currentSession = await syncAdminSession();
+    if (currentSession.authenticated) {
+      clearLoginStatus();
+      if (initialEmail) {
+        await runSearch();
+      } else {
+        renderEmptyState();
+      }
+    } else {
+      setLoginStatus(
+        currentSession.passwordConfigured
+          ? "Enter the preset password to open the workspace."
+          : "Set AUTH_ADMIN_PASSWORD in the auth-admin Pages environment to enable password login.",
+        currentSession.passwordConfigured ? "info" : "error"
+      );
+    }
+  } catch (error) {
+    setLoginStatus(error instanceof Error ? error.message : "Could not load the admin session.", "error");
+    applyAdminSession({
+      accessEmail: null,
+      authenticated: false,
+      mode: null,
+      passwordConfigured: false,
+    });
   }
 }
 

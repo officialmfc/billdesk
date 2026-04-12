@@ -257,6 +257,45 @@
       .hidden {
         display: none !important;
       }
+      .auth-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+        gap: 14px;
+        margin-bottom: 16px;
+      }
+      .auth-card {
+        border: 1px solid #dbe2ee;
+        border-radius: 20px;
+        padding: 18px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      }
+      .auth-card h2 {
+        margin: 0 0 6px;
+        font-size: 18px;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+      }
+      .auth-card .lead {
+        margin-bottom: 12px;
+      }
+      .workspace[hidden] {
+        display: none !important;
+      }
+      .session-note {
+        margin: 0;
+        color: var(--muted-2);
+        line-height: 1.5;
+        font-size: 13px;
+      }
+      .session-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .actions.single {
+        grid-template-columns: 1fr;
+      }
       @keyframes spin {
         to {
           transform: rotate(360deg);
@@ -284,16 +323,53 @@
       <section class="frame">
         <div class="hero">
           <div>
-            <p class="eyebrow">Cloudflare Access only</p>
+            <p class="eyebrow">Preset password or Cloudflare Access</p>
             <h1>Auth Admin</h1>
             <p class="lead">Search an account, revoke devices, and clear matching rate-limit entries. This surface is for admin-only control tasks.</p>
           </div>
           <div class="identity">
-            <small>Signed in as</small>
-            <strong data-admin-access-email>Authenticated administrator</strong>
+            <small>Session</small>
+            <strong data-admin-auth-state>Not signed in</strong>
+            <p class="session-note" data-admin-access-email>Set AUTH_ADMIN_PASSWORD in the Pages project or use Cloudflare Access.</p>
+            <div class="session-actions">
+              <button class="button secondary hidden" type="button" data-admin-logout>
+                <span class="button__spinner" aria-hidden="true"></span>
+                <span class="button__label" data-admin-button-label data-default-label="Sign out">Sign out</span>
+              </button>
+            </div>
           </div>
         </div>
 
+        <div class="auth-grid">
+          <section class="auth-card">
+            <h2>Sign in</h2>
+            <p class="lead">Use the preset admin password. Cloudflare Access still works as a bypass if it is present.</p>
+            <form id="admin-login-form">
+              <div class="field">
+                <label for="admin-password">Admin password</label>
+                <div class="password-field">
+                  <input id="admin-password" name="password" type="password" autocomplete="current-password" required />
+                  <button class="password-toggle" type="button" data-password-toggle="admin-password" aria-label="Show password" aria-pressed="false">Show</button>
+                </div>
+              </div>
+              <div class="actions single">
+                <button class="button" type="submit">
+                  <span class="button__spinner" aria-hidden="true"></span>
+                  <span class="button__label" data-admin-button-label data-default-label="Open admin">Open admin</span>
+                </button>
+              </div>
+            </form>
+            <div class="status" data-login-status hidden></div>
+          </section>
+          <section class="auth-card">
+            <h2>How it works</h2>
+            <p class="lead">Set <code>AUTH_ADMIN_PASSWORD</code> in the auth-admin Pages environment to enable password login. The session cookie lasts 8 hours.</p>
+            <p class="session-note">If Cloudflare Access headers are present, the admin surface opens without the password. On localhost, the gate stays open for local work.</p>
+          </section>
+        </div>
+      </section>
+
+      <section class="frame workspace" data-admin-workspace hidden>
         <form id="admin-form">
           <div class="controls">
             <div class="row">

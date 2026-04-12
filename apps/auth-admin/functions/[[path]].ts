@@ -1,6 +1,11 @@
-import { canUseCloudflareAccessAdmin, getCloudflareAccessEmail } from "../../auth/lib/server/cloudflare-access";
+import { getCloudflareAccessEmail } from "../../auth/lib/server/cloudflare-access";
 import { captureAuthHubError } from "../../auth/lib/server/logger";
 import { setAuthHubEnv, type AuthHubCloudflareEnv } from "../../auth/lib/server/cloudflare";
+import {
+  clearAdminSessionCookie,
+  createAdminSessionCookie,
+  readAdminSessionState,
+} from "../../auth/lib/server/admin-session";
 
 type PagesEnv = AuthHubCloudflareEnv & {
   AUTH_CORE?: {
@@ -12,6 +17,11 @@ type PagesContext = {
   env: PagesEnv;
   next: () => Promise<Response>;
   request: Request;
+};
+
+const JSON_HEADERS = {
+  "Cache-Control": "no-store",
+  "Content-Type": "application/json; charset=utf-8",
 };
 
 function normalizePath(pathname: string): string {
@@ -48,75 +58,109 @@ async function proxyToService(
   return service.fetch(request);
 }
 
-function renderAccessDeniedPage(request: Request): Response {
-  const url = new URL(request.url);
-  return new Response(
-    `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex,nofollow" />
-    <title>Access denied</title>
-    <style>
-      :root { color-scheme: light; }
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        padding: 24px;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: linear-gradient(180deg, #eef3ff 0%, #f8fafc 100%);
-        color: #0f172a;
-      }
-      .card {
-        width: min(100%, 540px);
-        border-radius: 24px;
-        border: 1px solid #dbe2ee;
-        background: rgba(255,255,255,0.96);
-        box-shadow: 0 20px 80px rgba(15, 23, 42, 0.08);
-        padding: 28px;
-      }
-      h1 { margin: 0 0 10px; font-size: 30px; letter-spacing: -0.03em; }
-      p { margin: 0 0 12px; color: #475569; line-height: 1.6; }
-      a {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin-top: 8px;
-        padding: 12px 16px;
-        border-radius: 14px;
-        background: #2563eb;
-        color: #fff;
-        font-weight: 700;
-        text-decoration: none;
-      }
-      code {
-        display: inline-block;
-        padding: 2px 6px;
-        border-radius: 999px;
-        background: #eff6ff;
-        color: #1d4ed8;
-      }
-    </style>
-  </head>
-  <body>
-    <main class="card">
-      <h1>Access denied</h1>
-      <p>This control surface is restricted to Cloudflare Access users.</p>
-      <p>Request path: <code>${request.method} ${url.pathname}</code></p>
-      <a href="/">Try again</a>
-    </main>
-  </body>
-</html>`,
-    {
-      status: 403,
-      headers: {
-        "Cache-Control": "no-store",
-        "Content-Type": "text/html; charset=utf-8",
+function json(data: unknown, status = 200, headers: HeadersInit = {}): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      ...JSON_HEADERS,
+      ...headers,
+    },
+  });
+}
+
+async function readJsonBody<T>(request: Request): Promise<T | null> {
+  try {
+    return (await request.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+async function handleAdminSession(request: Request, env: PagesEnv): Promise<Response> {
+  const session = await readAdminSessionState(request, env);
+  return json({
+    ok: true,
+    ...session,
+  });
+}
+
+async function handleAdminLogin(request: Request, env: PagesEnv): Promise<Response> {
+  const session = await readAdminSessionState(request, env);
+  if (session.authenticated) {
+    return json({
+      ok: true,
+      ...session,
+    });
+  }
+
+  const payload = await readJsonBody<{ password?: string }>(request);
+  const password = payload?.password?.trim() || "";
+  const configuredPassword = env.AUTH_ADMIN_PASSWORD?.trim() || "";
+
+  if (!configuredPassword) {
+    return json(
+      {
+        error: "Set AUTH_ADMIN_PASSWORD in the auth-admin Pages environment to enable password login.",
       },
+      400
+    );
+  }
+
+  if (!password) {
+    return json({ error: "Password is required." }, 400);
+  }
+
+  if (password !== configuredPassword) {
+    return json({ error: "Incorrect admin password." }, 401);
+  }
+
+  const cookie = await createAdminSessionCookie(env, request);
+  if (!cookie) {
+    return json({ error: "Could not create the admin session." }, 500);
+  }
+
+  return json(
+    {
+      ok: true,
+      authenticated: true,
+      accessEmail: null,
+      mode: "password",
+      passwordConfigured: true,
+    },
+    200,
+    {
+      "Set-Cookie": cookie,
     }
+  );
+}
+
+async function handleAdminLogout(request: Request, env: PagesEnv): Promise<Response> {
+  const session = await readAdminSessionState(request, env);
+  const headers: HeadersInit = {
+    "Set-Cookie": clearAdminSessionCookie(request),
+  };
+
+  if (session.mode === "access" || session.mode === "dev") {
+    return json(
+      {
+        ok: true,
+        ...session,
+      },
+      200,
+      headers
+    );
+  }
+
+  return json(
+    {
+      ok: true,
+      authenticated: false,
+      accessEmail: null,
+      mode: null,
+      passwordConfigured: session.passwordConfigured,
+    },
+    200,
+    headers
   );
 }
 
@@ -128,15 +172,33 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   const pathname = normalizePath(url.pathname);
 
   try {
-    if (!canUseCloudflareAccessAdmin(request, env)) {
-      return renderAccessDeniedPage(request);
-    }
-
     if (pathname === "/admin") {
       return Response.redirect(new URL("/", url).toString(), 302);
     }
 
+    if (pathname === "/admin/api/session" && request.method === "GET") {
+      return handleAdminSession(request, env);
+    }
+
+    if (pathname === "/admin/api/login" && request.method === "POST") {
+      return handleAdminLogin(request, env);
+    }
+
+    if (pathname === "/admin/api/logout" && request.method === "POST") {
+      return handleAdminLogout(request, env);
+    }
+
     if (pathname === "/admin/api" || pathname.startsWith("/admin/api/")) {
+      const session = await readAdminSessionState(request, env);
+      if (!session.authenticated) {
+        return json(
+          {
+            error: "Admin authentication is required.",
+          },
+          401
+        );
+      }
+
       return proxyToService(env.AUTH_CORE, request, pathname);
     }
 

@@ -44,10 +44,7 @@ import {
   resetAuthRateLimitEntries,
 } from "@/lib/server/auth-control-plane";
 import { ensureAuthFlowSchema, resolveAuthFlowInput } from "@/lib/server/flows";
-import {
-  canUseCloudflareAccessAdmin,
-  getCloudflareAccessEmail,
-} from "@/lib/server/cloudflare-access";
+import { readAdminSessionState } from "@/lib/server/admin-session";
 import {
   policyPreflightAuthGate,
   policySendSupabaseAuthEmail,
@@ -116,11 +113,22 @@ function normalizeAdminLookupApp(app: string | null | undefined): AppSlug | null
 }
 
 async function requireAdminAccess(request: Request, env: WorkerEnv): Promise<string | null> {
-  if (!canUseCloudflareAccessAdmin(request, env)) {
-    throw new Error("Cloudflare Access authentication is required.");
+  const session = await readAdminSessionState(request, env);
+  if (!session.authenticated) {
+    const error = new Error("Admin authentication is required.");
+    error.name = "AdminAuthRequiredError";
+    throw error;
   }
 
-  return getCloudflareAccessEmail(request);
+  return session.accessEmail;
+}
+
+function adminErrorStatus(error: unknown): number {
+  if (error instanceof Error && error.name === "AdminAuthRequiredError") {
+    return 401;
+  }
+
+  return 400;
 }
 
 function uniqueAccountValues(
@@ -1261,7 +1269,7 @@ async function handleAdminAccountSearch(request: Request, env: WorkerEnv): Promi
     await captureAuthHubError(error, { route: "GET /admin/api/account" }).catch(() => undefined);
     return json(
       { error: error instanceof Error ? error.message : "Could not load account." },
-      400
+      adminErrorStatus(error)
     );
   }
 }
@@ -1319,7 +1327,7 @@ async function handleAdminRevokeDevice(request: Request, env: WorkerEnv): Promis
     await captureAuthHubError(error, { route: "POST /admin/api/devices/revoke" }).catch(() => undefined);
     return json(
       { error: error instanceof Error ? error.message : "Could not revoke device." },
-      400
+      adminErrorStatus(error)
     );
   }
 }
@@ -1367,7 +1375,7 @@ async function handleAdminRevokeAllDevices(request: Request, env: WorkerEnv): Pr
     await captureAuthHubError(error, { route: "POST /admin/api/devices/revoke-all" }).catch(() => undefined);
     return json(
       { error: error instanceof Error ? error.message : "Could not revoke devices." },
-      400
+      adminErrorStatus(error)
     );
   }
 }
@@ -1400,7 +1408,7 @@ async function handleAdminRateLimits(request: Request, env: WorkerEnv): Promise<
     await captureAuthHubError(error, { route: "GET /admin/api/rate-limits" }).catch(() => undefined);
     return json(
       { error: error instanceof Error ? error.message : "Could not load rate limits." },
-      400
+      adminErrorStatus(error)
     );
   }
 }
@@ -1441,7 +1449,7 @@ async function handleAdminRateLimitReset(request: Request, env: WorkerEnv): Prom
     await captureAuthHubError(error, { route: "POST /admin/api/rate-limits/reset" }).catch(() => undefined);
     return json(
       { error: error instanceof Error ? error.message : "Could not reset rate limits." },
-      400
+      adminErrorStatus(error)
     );
   }
 }

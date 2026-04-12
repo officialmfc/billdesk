@@ -47,6 +47,7 @@ export type AuthHubCloudflareEnv = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
   NEXT_PUBLIC_SENTRY_DSN?: string;
   NEXT_PUBLIC_TURNSTILE_SITE_KEY?: string;
+  AUTH_ADMIN_PASSWORD?: string;
   TURNSTILE_SITE_KEY?: string;
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
