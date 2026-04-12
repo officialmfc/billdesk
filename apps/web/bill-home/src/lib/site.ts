@@ -33,6 +33,7 @@ export type ReleaseRegistry = {
 };
 
 export const registryUrl = "https://releases.mondalfishcenter.com/releases/registry.json";
+export const latestUrl = "https://releases.mondalfishcenter.com/releases/latest.json";
 export const logoSources = [
   "https://releases.mondalfishcenter.com/public/logo/logo.svg",
   "https://releases.mondalfishcenter.com/public/logo/logo.png",

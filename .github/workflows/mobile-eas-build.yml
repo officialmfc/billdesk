@@ -219,7 +219,7 @@ jobs:
           R2_BUCKET: ${{ vars.CLOUDFLARE_R2_BUCKET || secrets.CLOUDFLARE_R2_BUCKET || 'releases' }}
           R2_ENDPOINT: ${{ vars.CLOUDFLARE_R2_ENDPOINT || secrets.CLOUDFLARE_R2_ENDPOINT }}
           R2_PUBLIC_BASE_URL: https://releases.mondalfishcenter.com
-          RELEASE_PREFIX: ${{ matrix.app }}/${{ matrix.platform }}/${{ steps.manifest.outputs.version }}
+          RELEASE_PREFIX: releases/${{ matrix.app }}/${{ matrix.platform }}/${{ steps.manifest.outputs.version }}
         run: |
           aws s3 cp "${{ steps.artifact.outputs.path }}" "s3://${R2_BUCKET}/${RELEASE_PREFIX}/mobile-${{ matrix.app }}-${{ matrix.platform }}-${{ steps.manifest.outputs.version }}-${{ github.sha }}.apk" \
             --endpoint-url "${R2_ENDPOINT}"
@@ -242,7 +242,7 @@ jobs:
           cp apps/mobile/${{ matrix.app }}/release-manifest/registry.json apps/mobile/${{ matrix.app }}/release-manifest/latest.json
 
           registry_tmp="$(mktemp)"
-          aws s3 cp "s3://${R2_BUCKET}/registry.json" "$registry_tmp" \
+          aws s3 cp "s3://${R2_BUCKET}/releases/registry.json" "$registry_tmp" \
             --endpoint-url "${R2_ENDPOINT}" || true
           REGISTRY_TMP="$registry_tmp" node <<'EOF'
           const fs = require('node:fs');
@@ -262,7 +262,7 @@ jobs:
           fs.copyFileSync(path, 'apps/mobile/${{ matrix.app }}/release-manifest/latest.json');
           EOF
 
-          aws s3 cp apps/mobile/${{ matrix.app }}/release-manifest/registry.json "s3://${R2_BUCKET}/registry.json" \
+          aws s3 cp apps/mobile/${{ matrix.app }}/release-manifest/registry.json "s3://${R2_BUCKET}/releases/registry.json" \
             --endpoint-url "${R2_ENDPOINT}"
-          aws s3 cp apps/mobile/${{ matrix.app }}/release-manifest/latest.json "s3://${R2_BUCKET}/latest.json" \
+          aws s3 cp apps/mobile/${{ matrix.app }}/release-manifest/latest.json "s3://${R2_BUCKET}/releases/latest.json" \
             --endpoint-url "${R2_ENDPOINT}"

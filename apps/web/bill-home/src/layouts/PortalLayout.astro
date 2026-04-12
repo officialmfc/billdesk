@@ -1,5 +1,5 @@
 ---
-import { appCatalog, logoSources, registryUrl } from "../lib/site";
+import { appCatalog, latestUrl, logoSources, registryUrl } from "../lib/site";
 
 const {
   title = "Bill Home",
@@ -720,11 +720,13 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
     id="bill-home-config"
     hidden
     data-registry-url={registryUrl}
+    data-latest-url={latestUrl}
     data-logo-sources={JSON.stringify(logoSources)}
   />
   <script is:inline>
     const configTag = document.getElementById("bill-home-config");
     const registryUrl = configTag?.dataset.registryUrl || "";
+    const latestUrl = configTag?.dataset.latestUrl || "";
     const logoSources = configTag?.dataset.logoSources ? JSON.parse(configTag.dataset.logoSources) : [];
     const appMeta = {
       manager: { title: "Manager Desktop" },
@@ -941,20 +943,30 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
 
     async function loadRegistry() {
       let registry = null;
+      let latest = null;
       let registryLoaded = false;
 
       try {
-        const response = await fetch(registryUrl, { cache: "no-store" });
-        if (response.ok) {
-          registry = await response.json();
+        const [registryResponse, latestResponse] = await Promise.all([
+          fetch(registryUrl, { cache: "no-store" }),
+          fetch(latestUrl, { cache: "no-store" }),
+        ]);
+
+        if (latestResponse.ok) {
+          latest = await latestResponse.json();
+        }
+
+        if (registryResponse.ok) {
+          registry = await registryResponse.json();
           registryLoaded = true;
         }
       } catch (_) {
         registry = null;
       }
 
+      const snapshot = registry || latest;
       document.querySelectorAll("[data-release-card]").forEach((card) => {
-        updateReleaseCard(card, registry, registryLoaded);
+        updateReleaseCard(card, snapshot, registryLoaded);
       });
     }
 

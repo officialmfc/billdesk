@@ -210,7 +210,7 @@ jobs:
             *) echo "Unsupported artifact type: $artifact" >&2; exit 1 ;;
           esac
 
-          key="manager/${RELEASE_OS}/${RELEASE_VERSION}/manager_${RELEASE_OS}_${RELEASE_VERSION}_${RELEASE_SHA}.${ext}"
+          key="releases/manager/${RELEASE_OS}/${RELEASE_VERSION}/manager_${RELEASE_OS}_${RELEASE_VERSION}_${RELEASE_SHA}.${ext}"
           aws s3 cp "$artifact" "s3://${R2_BUCKET}/${key}" \
             --endpoint-url "${R2_ENDPOINT}"
 
@@ -233,7 +233,7 @@ jobs:
           cp "$registry_path" "$latest_path"
 
           registry_tmp="$(mktemp)"
-          aws s3 cp "s3://${R2_BUCKET}/registry.json" "$registry_tmp" \
+          aws s3 cp "s3://${R2_BUCKET}/releases/registry.json" "$registry_tmp" \
             --endpoint-url "${R2_ENDPOINT}" || true
           REGISTRY_TMP="$registry_tmp" node <<'EOF'
           const fs = require('node:fs');
@@ -253,8 +253,8 @@ jobs:
           fs.copyFileSync(path, 'apps/desktop/manager/release/latest.json');
           EOF
 
-          aws s3 cp "$registry_path" "s3://${R2_BUCKET}/registry.json" \
+          aws s3 cp "$registry_path" "s3://${R2_BUCKET}/releases/registry.json" \
             --endpoint-url "${R2_ENDPOINT}"
-          aws s3 cp "$latest_path" "s3://${R2_BUCKET}/latest.json" \
+          aws s3 cp "$latest_path" "s3://${R2_BUCKET}/releases/latest.json" \
             --endpoint-url "${R2_ENDPOINT}"
           echo "Uploaded: ${key}"
