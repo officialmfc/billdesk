@@ -854,19 +854,12 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
       }
     }
 
-    function updateReleaseCard(card, registrySnapshot, latestSnapshot, registryLoaded, latestLoaded) {
+    function updateReleaseCard(card, registrySnapshot, latestSnapshot) {
       const app = card.dataset.app;
       const platform = card.dataset.platform || "";
       const sourcePreference = card.dataset.releaseSource || "latest";
-      const primarySnapshot = sourcePreference === "registry" ? registrySnapshot : latestSnapshot;
-      const secondarySnapshot = sourcePreference === "registry" ? latestSnapshot : registrySnapshot;
-      const primaryLoaded = sourcePreference === "registry" ? registryLoaded : latestLoaded;
-      const secondaryLoaded = sourcePreference === "registry" ? latestLoaded : registryLoaded;
-      let release = pickEntry(primarySnapshot, app, platform);
-      if (!release && !primaryLoaded && secondaryLoaded) {
-        release = pickEntry(secondarySnapshot, app, platform);
-      }
-      const shouldHide = primaryLoaded && platform && !release;
+      const snapshot = sourcePreference === "registry" ? registrySnapshot : latestSnapshot;
+      const release = pickEntry(snapshot, app, platform);
       const pageRoute = card.dataset.pageRoute || "";
       const fallbackWebsite = card.dataset.fallbackWebsite || "";
       const summary = entrySummary(release, fallbackWebsite);
@@ -892,7 +885,7 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
       const pageLink = card.querySelector("[data-page-link]");
       const downloadLink = card.querySelector("[data-download]");
 
-      if (shouldHide) {
+      if (!release) {
         card.hidden = true;
         card.setAttribute("aria-hidden", "true");
         return;
@@ -956,8 +949,6 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
     async function loadRegistry() {
       let registry = null;
       let latest = null;
-      let registryLoaded = false;
-      let latestLoaded = false;
 
       try {
         const [registryResponse, latestResponse] = await Promise.all([
@@ -967,19 +958,17 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
 
         if (latestResponse.ok) {
           latest = await latestResponse.json();
-          latestLoaded = true;
         }
 
         if (registryResponse.ok) {
           registry = await registryResponse.json();
-          registryLoaded = true;
         }
       } catch (_) {
         registry = null;
       }
 
       document.querySelectorAll("[data-release-card]").forEach((card) => {
-        updateReleaseCard(card, registry, latest, registryLoaded, latestLoaded);
+        updateReleaseCard(card, registry, latest);
       });
     }
 

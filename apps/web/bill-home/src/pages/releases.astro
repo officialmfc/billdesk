@@ -50,7 +50,14 @@ const releaseGroups = [
         </div>
 
         <div class="platform-grid">
-          {group.platforms.map((platform) => <ReleaseCard app={group.key as "manager" | "admin" | "user"} platform={platform.key} compact />)}
+          {group.platforms.map((platform) => (
+            <ReleaseCard
+              app={group.key as "manager" | "admin" | "user"}
+              platform={platform.key}
+              source={group.key === "manager" ? "registry" : "latest"}
+              compact
+            />
+          ))}
         </div>
       </div>
     ))}

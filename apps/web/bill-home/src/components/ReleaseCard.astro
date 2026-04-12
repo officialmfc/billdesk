@@ -53,6 +53,7 @@ const platformChipLabel = platformLabelProp || platformMeta?.title || meta.badge
 <article
   class:list={["release-card", compact && "compact", summary && "summary"]}
   data-release-card
+  hidden
   data-app={app}
   data-platform={platform || ""}
   data-device={device}
