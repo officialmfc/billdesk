@@ -16,6 +16,12 @@ import {
   touchHostedUserWebDeviceLease,
 } from "@/lib/supabase";
 import {
+  fetchAuthBootstrapSnapshot,
+  readCachedAuthBootstrapSnapshot,
+  writeCachedAuthBootstrapSnapshot,
+  type UserAuthBootstrapSnapshot,
+} from "@/lib/auth-bootstrap";
+import {
   clearUserAppCache,
   getCurrentUserProfile,
   syncCurrentUserData,
@@ -47,41 +53,6 @@ function authLog(message: string, extra?: unknown): void {
   console.info(`[UserWebAuth] ${message}`, extra);
 }
 
-function getText(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function getRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function buildFallbackUserProfileFromSession(session: Session): UserProfile | null {
-  const metadata = session.user.user_metadata ?? {};
-  const userType = getText(metadata.user_type) || getText(metadata.requested_user_type);
-  const defaultRole =
-    getText(metadata.default_role) || getText(metadata.requested_default_role);
-
-  if (userType !== "business" && userType !== "vendor") {
-    return null;
-  }
-
-  if (defaultRole !== "buyer" && defaultRole !== "seller") {
-    return null;
-  }
-
-  return {
-    address: getRecord(metadata.address),
-    businessName: getText(metadata.business_name) || null,
-    defaultRole,
-    id: session.user.id,
-    name: getText(metadata.full_name) || getText(metadata.name) || session.user.email || "User",
-    phone: getText(metadata.phone) || null,
-    userType,
-  };
-}
-
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
   return Promise.race([
     promise,
@@ -93,7 +64,9 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: strin
 
 export function UserAppProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [authBootstrap, setAuthBootstrap] = useState<UserAuthBootstrapSnapshot | null>(null);
   const [sellerSectionEnabled, setSellerSectionEnabledState] = useState<boolean>(() => {
     if (typeof window === "undefined") {
       return false;
@@ -103,6 +76,7 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
   });
   const restoreGenerationRef = useRef(0);
   const lastSuccessfulSessionTokenRef = useRef<string | null>(null);
+  const authUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -112,24 +86,22 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
     window.localStorage.setItem(SELLER_SECTION_KEY, sellerSectionEnabled ? "true" : "false");
   }, [sellerSectionEnabled]);
 
+  useEffect(() => {
+    if (!authBootstrap) {
+      return;
+    }
+
+    authLog("auth bootstrap snapshot ready", {
+      account: authBootstrap.account?.email,
+      version: authBootstrap.snapshot_version,
+    });
+  }, [authBootstrap]);
+
   const restoreSession = async (sessionHint?: Session | null) => {
     const restoreId = ++restoreGenerationRef.current;
     const isCurrent = () => restoreId === restoreGenerationRef.current;
 
     try {
-      if (sessionHint) {
-        const optimisticProfile = buildFallbackUserProfileFromSession(sessionHint);
-        if (optimisticProfile) {
-          setProfile(optimisticProfile);
-          setIsLoading(false);
-          authLog("session metadata fallback profile loaded", {
-            userId: optimisticProfile.id,
-            userType: optimisticProfile.userType,
-            role: optimisticProfile.defaultRole,
-          });
-        }
-      }
-
       const session =
         sessionHint ??
         (
@@ -145,60 +117,126 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
       }
 
       if (!session) {
+        authUserIdRef.current = null;
         lastSuccessfulSessionTokenRef.current = null;
+        setIsAuthenticated(false);
+        setAuthBootstrap(null);
         setProfile(null);
         authLog("no session found");
         return;
       }
 
       const sessionToken = session.access_token;
+      const authUserId = session.user.id;
+      authUserIdRef.current = authUserId;
+      setIsAuthenticated(true);
       if (sessionToken && lastSuccessfulSessionTokenRef.current === sessionToken) {
         authLog("session already hydrated; skipping duplicate restore");
+        setIsLoading(false);
         return;
       }
 
-      const authUserId = session.user.id;
+      const cachedBootstrap = await readCachedAuthBootstrapSnapshot(authUserId);
+      if (cachedBootstrap && isCurrent()) {
+        setAuthBootstrap(cachedBootstrap);
+        if (cachedBootstrap.profile) {
+          setProfile(cachedBootstrap.profile);
+        }
+        authLog("cached auth bootstrap loaded", {
+          account: cachedBootstrap.account?.email,
+          access: cachedBootstrap.access,
+        });
+      }
+
+      const cachedProfile = await getCurrentUserProfile(authUserId);
+      if (cachedProfile && isCurrent()) {
+        setProfile(cachedProfile);
+        authLog("cached profile loaded", {
+          userId: cachedProfile.id,
+          userType: cachedProfile.userType,
+          role: cachedProfile.defaultRole,
+        });
+      }
 
       // Fire-and-forget — lease was already claimed during handoff; this is just a keepalive
       void touchHostedUserWebDeviceLease(sessionToken).catch((error) => {
         authLog("device lease touch failed (non-blocking)", error);
       });
 
-      // Sync and load fresh profile — pass userId directly, no getSession() needed
-      try {
-        authLog("syncing current user data");
-        await withTimeout(syncCurrentUserData(authUserId), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
-      } catch (error) {
-        if (isCurrent()) {
-          authLog("sync failed, using cached data", error instanceof Error ? error.message : String(error));
+      setIsLoading(false);
+
+      void (async () => {
+        try {
+          const snapshot = await withTimeout(
+            fetchAuthBootstrapSnapshot(sessionToken),
+            2500,
+            "auth bootstrap"
+          );
+
+          if (!isCurrent()) {
+            return;
+          }
+
+          setAuthBootstrap(snapshot);
+          if (snapshot.profile) {
+            setProfile(snapshot.profile);
+          }
+          await writeCachedAuthBootstrapSnapshot(authUserId, snapshot);
+          authLog("auth bootstrap loaded", {
+            account: snapshot.account?.email,
+            access: snapshot.access,
+          });
+        } catch (error) {
+          if (isCurrent()) {
+            authLog(
+              "auth bootstrap fallback to cached state",
+              error instanceof Error ? error.message : String(error)
+            );
+          }
         }
-      }
+      })();
 
-      if (!isCurrent()) {
-        return;
-      }
+      void (async () => {
+        try {
+          authLog("syncing current user data");
+          await withTimeout(
+            syncCurrentUserData(authUserId),
+            USER_SESSION_TIMEOUT_MS,
+            "syncCurrentUserData"
+          );
+          if (!isCurrent()) {
+            return;
+          }
 
-      const freshProfile = await withTimeout(
-        getCurrentUserProfile(authUserId),
-        USER_SESSION_TIMEOUT_MS,
-        "getCurrentUserProfile"
-      );
+          const freshProfile = await getCurrentUserProfile(authUserId);
+          if (freshProfile && isCurrent()) {
+            setProfile(freshProfile);
+            authLog("fresh profile loaded", {
+              userId: freshProfile.id,
+              userType: freshProfile.userType,
+              role: freshProfile.defaultRole,
+            });
+          }
+        } catch (error) {
+          if (isCurrent()) {
+            authLog(
+              "sync failed, using cached data",
+              error instanceof Error ? error.message : String(error)
+            );
+          }
+        }
+      })();
 
-      if (freshProfile && isCurrent()) {
-        setProfile(freshProfile);
-        lastSuccessfulSessionTokenRef.current = sessionToken;
-        authLog("fresh profile loaded", {
-          userId: freshProfile.id,
-          userType: freshProfile.userType,
-          role: freshProfile.defaultRole,
-        });
-      }
+      lastSuccessfulSessionTokenRef.current = sessionToken;
     } catch (error) {
       if (!isCurrent()) {
         return;
       }
 
       lastSuccessfulSessionTokenRef.current = null;
+      authUserIdRef.current = null;
+      setIsAuthenticated(false);
+      setAuthBootstrap(null);
       console.error("[UserWebAuth] restore session failed", error);
       await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
       await clearPersistedSupabaseSession().catch(() => undefined);
@@ -228,6 +266,9 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
 
         if (!session) {
           lastSuccessfulSessionTokenRef.current = null;
+          authUserIdRef.current = null;
+          setIsAuthenticated(false);
+          setAuthBootstrap(null);
           setProfile(null);
           setIsLoading(false);
           authLog("session cleared");
@@ -239,6 +280,7 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
           lastSuccessfulSessionTokenRef.current === session.access_token
         ) {
           authLog("duplicate auth state ignored for hydrated session");
+          setIsAuthenticated(true);
           setIsLoading(false);
           return;
         }
@@ -273,12 +315,16 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
   };
 
   const refreshProfile = async () => {
+    const authUserId = authUserIdRef.current;
+    if (authUserId) {
+      await withTimeout(syncCurrentUserData(authUserId), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
+      const nextProfile = await getCurrentUserProfile(authUserId);
+      setProfile(nextProfile);
+      return;
+    }
+
     await withTimeout(syncCurrentUserData(), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
-    const nextProfile = await withTimeout(
-      getCurrentUserProfile(),
-      USER_SESSION_TIMEOUT_MS,
-      "getCurrentUserProfile"
-    );
+    const nextProfile = await getCurrentUserProfile();
     setProfile(nextProfile);
   };
 
@@ -287,12 +333,15 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
     await clearPersistedSupabaseSession().catch(() => undefined);
     await clearUserAppCache().catch(() => undefined);
     lastSuccessfulSessionTokenRef.current = null;
+    authUserIdRef.current = null;
+    setIsAuthenticated(false);
+    setAuthBootstrap(null);
     setProfile(null);
   };
 
   const value = useMemo<UserAppContextValue>(
     () => ({
-      isAuthenticated: Boolean(profile),
+      isAuthenticated,
       isLoading,
       profile,
       refreshProfile,
@@ -300,7 +349,7 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
       setSellerSectionEnabled,
       logout,
     }),
-    [isLoading, logout, profile, refreshProfile, sellerSectionEnabled]
+    [isAuthenticated, isLoading, logout, profile, refreshProfile, sellerSectionEnabled]
   );
 
   return <UserAppContext.Provider value={value}>{children}</UserAppContext.Provider>;

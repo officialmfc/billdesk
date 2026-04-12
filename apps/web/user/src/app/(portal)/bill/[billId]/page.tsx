@@ -18,20 +18,26 @@ export default function BillDetailPage(): React.JSX.Element {
   useEffect(() => {
     const load = async () => {
       if (!profile?.id || !billId) {
+        setBill(null);
+        setLoading(false);
         return;
       }
 
       setLoading(true);
-      setBill(await getUserBillDetail(profile.id, billId));
-
       try {
-        await syncCurrentUserData();
         setBill(await getUserBillDetail(profile.id, billId));
-      } catch {
-        // Keep cached bill detail visible.
       } finally {
         setLoading(false);
       }
+
+      void (async () => {
+        try {
+          await syncCurrentUserData();
+          setBill(await getUserBillDetail(profile.id, billId));
+        } catch {
+          // Keep cached bill detail visible.
+        }
+      })();
     };
 
     void load();

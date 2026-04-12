@@ -26,34 +26,46 @@ export default function SellerPage(): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = async (refreshRemote = true) => {
+  const refreshRemote = () => {
     if (!profile?.id) {
       return;
     }
 
     setRefreshing(true);
+    void (async () => {
+      try {
+        await syncCurrentUserData();
+        setData(await getUserTodayData(profile.id, dateStr));
+        setHistoryRows(await getUserHistory(profile.id));
+      } catch {
+        // Keep cached seller data visible.
+      } finally {
+        setRefreshing(false);
+      }
+    })();
+  };
+
+  const load = async () => {
+    if (!profile?.id) {
+      setData(null);
+      setHistoryRows([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     try {
       setData(await getUserTodayData(profile.id, dateStr));
       setHistoryRows(await getUserHistory(profile.id));
-
-      if (refreshRemote) {
-        try {
-          await syncCurrentUserData();
-          setData(await getUserTodayData(profile.id, dateStr));
-          setHistoryRows(await getUserHistory(profile.id));
-        } catch {
-          // Keep cached seller data visible.
-        }
-      }
     } finally {
-      setRefreshing(false);
       setLoading(false);
     }
+
+    refreshRemote();
   };
 
   useEffect(() => {
-    setLoading(true);
-    void load(true);
+    void load();
   }, [dateStr, profile?.id]);
 
   const sellerHistoryRows = useMemo(
@@ -114,7 +126,7 @@ export default function SellerPage(): React.JSX.Element {
           </button>
         </div>
         <div className="toolbar__group">
-          <button className="button button--secondary" type="button" onClick={() => void load(true)}>
+          <button className="button button--secondary" type="button" onClick={() => void load()}>
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>

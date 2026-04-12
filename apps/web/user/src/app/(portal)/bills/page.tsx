@@ -23,32 +23,43 @@ export default function BillsPage(): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = async (refreshRemote = true) => {
+  const refreshRemote = () => {
     if (!profile?.id) {
       return;
     }
 
     setRefreshing(true);
+    void (async () => {
+      try {
+        await syncCurrentUserData();
+        setData(await getUserTodayData(profile.id, dateStr));
+      } catch {
+        // Keep cached day data visible.
+      } finally {
+        setRefreshing(false);
+      }
+    })();
+  };
+
+  const load = async () => {
+    if (!profile?.id) {
+      setData(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     try {
       setData(await getUserTodayData(profile.id, dateStr));
-
-      if (refreshRemote) {
-        try {
-          await syncCurrentUserData();
-          setData(await getUserTodayData(profile.id, dateStr));
-        } catch {
-          // Keep cached day data visible.
-        }
-      }
     } finally {
-      setRefreshing(false);
       setLoading(false);
     }
+
+    refreshRemote();
   };
 
   useEffect(() => {
-    setLoading(true);
-    void load(true);
+    void load();
   }, [dateStr, profile?.id]);
 
   const dayTotal = useMemo(
@@ -114,7 +125,7 @@ export default function BillsPage(): React.JSX.Element {
 
       <div className="toolbar">
         <div className="toolbar__group">
-          <button className="button button--secondary" type="button" onClick={() => void load(true)}>
+          <button className="button button--secondary" type="button" onClick={() => void load()}>
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>

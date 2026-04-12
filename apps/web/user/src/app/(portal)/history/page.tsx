@@ -17,32 +17,43 @@ export default function HistoryPage(): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = async (refreshRemote = true) => {
+  const refreshRemote = () => {
     if (!profile?.id) {
       return;
     }
 
     setRefreshing(true);
+    void (async () => {
+      try {
+        await syncCurrentUserData();
+        setRows(await getUserHistory(profile.id));
+      } catch {
+        // Keep the cached history visible when refresh fails.
+      } finally {
+        setRefreshing(false);
+      }
+    })();
+  };
+
+  const load = async () => {
+    if (!profile?.id) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     try {
       setRows(await getUserHistory(profile.id));
-
-      if (refreshRemote) {
-        try {
-          await syncCurrentUserData();
-          setRows(await getUserHistory(profile.id));
-        } catch {
-          // Keep the cached history visible when refresh fails.
-        }
-      }
     } finally {
-      setRefreshing(false);
       setLoading(false);
     }
+
+    refreshRemote();
   };
 
   useEffect(() => {
-    setLoading(true);
-    void load(true);
+    void load();
   }, [profile?.id]);
 
   const filteredRows = useMemo(
@@ -77,7 +88,7 @@ export default function HistoryPage(): React.JSX.Element {
 
       <div className="toolbar">
         <div className="toolbar__group">
-          <button className="button button--secondary" type="button" onClick={() => void load(true)}>
+          <button className="button button--secondary" type="button" onClick={() => void load()}>
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>

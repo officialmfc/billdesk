@@ -49,6 +49,7 @@ import {
   policyPreflightAuthGate,
   policySendSupabaseAuthEmail,
 } from "@/lib/server/policy-client";
+import { createSupabaseAdminClient } from "@/lib/server/supabase-admin";
 import { routeAuthPage as routeSharedAuthPage } from "@/lib/ui-pages";
 
 type PageName =
@@ -204,6 +205,90 @@ async function loadAdminAccountState(params: {
     devices,
     rateLimits,
     relatedValues,
+  };
+}
+
+type AuthBootstrapProfile = {
+  address: Record<string, unknown> | null;
+  businessName: string | null;
+  defaultRole: "buyer" | "seller";
+  id: string;
+  name: string;
+  phone: string | null;
+  userType: "business" | "vendor";
+};
+
+async function loadBootstrapUserProfile(authUserId: string): Promise<AuthBootstrapProfile | null> {
+  try {
+    const supabase = await createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, name, business_name, phone, default_role, user_type, address")
+      .eq("auth_user_id", authUserId)
+      .maybeSingle<{
+        address: string | null;
+        business_name: string | null;
+        default_role: string | null;
+        id: string;
+        name: string | null;
+        phone: string | null;
+        user_type: string | null;
+      }>();
+
+    if (error || !data?.id || !data.name || !data.default_role || !data.user_type) {
+      return null;
+    }
+
+    let address: Record<string, unknown> | null = null;
+    if (typeof data.address === "string" && data.address.trim()) {
+      try {
+        const parsed = JSON.parse(data.address);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          address = parsed as Record<string, unknown>;
+        }
+      } catch {
+        address = null;
+      }
+    }
+
+    const defaultRole = data.default_role === "seller" ? "seller" : "buyer";
+    const userType = data.user_type === "vendor" ? "vendor" : "business";
+
+    return {
+      address,
+      businessName: data.business_name ?? null,
+      defaultRole,
+      id: data.id,
+      name: data.name,
+      phone: data.phone ?? null,
+      userType,
+    };
+  } catch (error) {
+    await captureAuthHubError(error, {
+      route: "GET /api/bootstrap",
+      stage: "load_user_profile",
+    }).catch(() => undefined);
+    return null;
+  }
+}
+
+async function loadAuthBootstrapState(authUserId: string): Promise<{
+  account: Awaited<ReturnType<typeof getAuthAccountDirectoryRowsByAuthUserId>>[number] | null;
+  accounts: Awaited<ReturnType<typeof getAuthAccountDirectoryRowsByAuthUserId>>;
+  devices: Awaited<ReturnType<typeof listActiveDeviceLeases>>;
+  profile: AuthBootstrapProfile | null;
+}> {
+  const [accounts, devices, profile] = await Promise.all([
+    getAuthAccountDirectoryRowsByAuthUserId(authUserId),
+    listActiveDeviceLeases(authUserId),
+    loadBootstrapUserProfile(authUserId),
+  ]);
+
+  return {
+    account: accounts[0] ?? null,
+    accounts,
+    devices,
+    profile,
   };
 }
 
@@ -1219,19 +1304,43 @@ async function handleDevicesRevokeAll(request: Request): Promise<Response> {
 async function handleAccountMe(request: Request): Promise<Response> {
   try {
     const actor = await resolveActorFromBearer(request.headers.get("authorization"));
-    const accounts = await getAuthAccountDirectoryRowsByAuthUserId(actor.authUserId);
-    const devices = await listActiveDeviceLeases(actor.authUserId);
+    const { account, accounts, devices, profile } = await loadAuthBootstrapState(actor.authUserId);
     return json({
       ok: true,
       access: actor.access,
-      account: accounts[0] || null,
+      account,
       accounts,
       devices,
+      profile,
     });
   } catch (error) {
     await captureAuthHubError(error, { route: "GET /api/account" }).catch(() => undefined);
     return json(
       { error: error instanceof Error ? error.message : "Could not load account." },
+      400
+    );
+  }
+}
+
+async function handleAuthBootstrap(request: Request): Promise<Response> {
+  try {
+    const actor = await resolveActorFromBearer(request.headers.get("authorization"));
+    const { account, accounts, devices, profile } = await loadAuthBootstrapState(actor.authUserId);
+    return json({
+      ok: true,
+      snapshot_version: 1,
+      source: "auth-core",
+      fetched_at: new Date().toISOString(),
+      access: actor.access,
+      account,
+      accounts,
+      devices,
+      profile,
+    });
+  } catch (error) {
+    await captureAuthHubError(error, { route: "GET /api/bootstrap" }).catch(() => undefined);
+    return json(
+      { error: error instanceof Error ? error.message : "Could not load bootstrap state." },
       400
     );
   }
@@ -1936,6 +2045,10 @@ const worker = {
 
       if (pathname === "/api/account" && request.method === "GET") {
         return await handleAccountMe(request);
+      }
+
+      if (pathname === "/api/bootstrap" && request.method === "GET") {
+        return await handleAuthBootstrap(request);
       }
 
       if (pathname === "/api/register/self" && request.method === "POST") {
