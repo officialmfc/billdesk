@@ -9,27 +9,6 @@ export type PlatformOption = {
   description: string;
   artifactLabel: string;
   badge: string;
-  fallbackWebsite?: string;
-};
-
-export type ReleaseEntry = {
-  app?: string;
-  platform?: string;
-  device?: string;
-  version?: string;
-  sha?: string;
-  tag?: string;
-  website?: {
-    url?: string;
-  };
-  artifact?: {
-    url?: string;
-  };
-};
-
-export type ReleaseRegistry = {
-  latest?: Partial<Record<AppKey, ReleaseEntry>>;
-  apps?: Partial<Record<AppKey, ReleaseEntry | ReleaseEntry[] | Record<string, ReleaseEntry>>>;
 };
 
 export const registryUrl = "https://releases.mondalfishcenter.com/releases/registry.json";
@@ -45,7 +24,6 @@ export const appCatalog: Record<
   {
     key: AppKey;
     title: string;
-    slug: string;
     device: DeviceKey;
     route: string;
     badge: string;
@@ -57,7 +35,6 @@ export const appCatalog: Record<
   manager: {
     key: "manager",
     title: "Manager",
-    slug: "manager",
     device: "desktop",
     route: "/manager/desktop",
     badge: "Web + Desktop",
@@ -85,7 +62,6 @@ export const appCatalog: Record<
   admin: {
     key: "admin",
     title: "Admin",
-    slug: "admin",
     device: "mobile",
     route: "/admin/mobile",
     badge: "Mobile",
@@ -113,7 +89,6 @@ export const appCatalog: Record<
   user: {
     key: "user",
     title: "User",
-    slug: "user",
     device: "mobile",
     route: "/user/mobile",
     badge: "Mobile",
@@ -151,90 +126,4 @@ export function platformTitle(app: AppKey, platform: PlatformKey) {
   }
 
   return releaseTitle(app, appCatalog[app].device);
-}
-
-export function fallbackWebsite(app: AppKey) {
-  return appCatalog[app].website;
-}
-
-export function findReleaseEntry(value: unknown, platform?: PlatformKey): ReleaseEntry | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  if (Array.isArray(value)) {
-    const normalizedPlatform = platform?.toLowerCase();
-    for (let index = value.length - 1; index >= 0; index -= 1) {
-      const nested = findReleaseEntry(value[index], platform);
-      if (nested && (!normalizedPlatform || String(nested.platform || nested.device || "").toLowerCase() === normalizedPlatform)) {
-        return nested;
-      }
-    }
-
-    return null;
-  }
-
-  const candidate = value as Record<string, unknown>;
-  if (candidate.artifact || candidate.version) {
-    if (platform) {
-      const normalizedPlatform = platform.toLowerCase();
-      const candidatePlatform = String(candidate.platform || candidate.device || "").toLowerCase();
-      if (candidatePlatform === normalizedPlatform) {
-        return value as ReleaseEntry;
-      }
-
-      return null;
-    }
-
-    return value as ReleaseEntry;
-  }
-
-  for (const nested of Object.values(candidate)) {
-    const entry = findReleaseEntry(nested, platform);
-    if (entry) {
-      return entry;
-    }
-  }
-
-  if (platform) {
-    return null;
-  }
-
-  return null;
-}
-
-export function resolveReleaseEntry(registry: ReleaseRegistry | null | undefined, app: AppKey) {
-  const latestEntry = findReleaseEntry(registry?.latest?.[app]);
-  if (latestEntry) {
-    return latestEntry;
-  }
-
-  const appEntry = findReleaseEntry(registry?.apps?.[app]);
-  if (appEntry) {
-    return appEntry;
-  }
-
-  return null;
-}
-
-export function resolveWebsiteUrl(app: AppKey, entry?: ReleaseEntry | null) {
-  return (
-    entry?.website?.url ||
-    (entry as { website_url?: string; websiteUrl?: string; app_url?: string; appUrl?: string } | null)?.website_url ||
-    (entry as { website_url?: string; websiteUrl?: string; app_url?: string; appUrl?: string } | null)?.websiteUrl ||
-    (entry as { website_url?: string; websiteUrl?: string; app_url?: string; appUrl?: string } | null)?.app_url ||
-    (entry as { website_url?: string; websiteUrl?: string; app_url?: string; appUrl?: string } | null)?.appUrl ||
-    fallbackWebsite(app)
-  );
-}
-
-export function resolveDownloadUrl(entry?: ReleaseEntry | null) {
-  return (
-    entry?.artifact?.url ||
-    (entry as { artifact_url?: string; download_url?: string; downloadUrl?: string; url?: string } | null)?.artifact_url ||
-    (entry as { artifact_url?: string; download_url?: string; downloadUrl?: string; url?: string } | null)?.download_url ||
-    (entry as { artifact_url?: string; download_url?: string; downloadUrl?: string; url?: string } | null)?.downloadUrl ||
-    (entry as { artifact_url?: string; download_url?: string; downloadUrl?: string; url?: string } | null)?.url ||
-    ""
-  );
 }

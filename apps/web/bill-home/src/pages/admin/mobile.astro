@@ -36,9 +36,7 @@ const adminPlatforms = appCatalog.admin.platforms;
       <p>Pick a published platform and download the exact artifact from R2.</p>
     </div>
     <div class="platform-grid">
-      {adminPlatforms.map((platform) => (
-        <ReleaseCard app="admin" platform={platform.key} source="latest" summary compact />
-      ))}
+      {adminPlatforms.map((platform) => <ReleaseCard app="admin" platform={platform.key} summary compact />)}
     </div>
   </section>
 

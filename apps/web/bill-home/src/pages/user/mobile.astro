@@ -36,9 +36,7 @@ const userPlatforms = appCatalog.user.platforms;
       <p>Pick a published platform and download the exact artifact from R2.</p>
     </div>
     <div class="platform-grid">
-      {userPlatforms.map((platform) => (
-        <ReleaseCard app="user" platform={platform.key} source="latest" summary compact />
-      ))}
+      {userPlatforms.map((platform) => <ReleaseCard app="user" platform={platform.key} summary compact />)}
     </div>
   </section>
 

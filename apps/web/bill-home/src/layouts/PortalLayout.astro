@@ -728,12 +728,6 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
     const registryUrl = configTag?.dataset.registryUrl || "";
     const latestUrl = configTag?.dataset.latestUrl || "";
     const logoSources = configTag?.dataset.logoSources ? JSON.parse(configTag.dataset.logoSources) : [];
-    const appMeta = {
-      manager: { title: "Manager Desktop" },
-      admin: { title: "Admin Mobile" },
-      user: { title: "User Mobile" },
-    };
-
     function matchesPlatform(entry, platform) {
       if (!platform) {
         return true;
@@ -895,11 +889,7 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
       card.removeAttribute("aria-hidden");
 
       if (title) {
-        title.textContent = card.dataset.cardTitle || appMeta[app]?.title || (pageRoute.includes("manager")
-          ? "Manager Desktop"
-          : pageRoute.includes("admin")
-            ? "Admin Mobile"
-            : "User Mobile");
+        title.textContent = card.dataset.cardTitle || "";
       }
       if (badgeText) {
         badgeText.textContent = badge;

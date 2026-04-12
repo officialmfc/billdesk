@@ -21,7 +21,6 @@ const {
   pageActionLabel = "Back to platform",
   pageActionHref,
   releasesHref = "/releases",
-  source = platform === "macos" || platform === "windows" ? "registry" : "latest",
 } = Astro.props as {
   title: string;
   description: string;
@@ -41,7 +40,6 @@ const {
   pageActionLabel?: string;
   pageActionHref?: string;
   releasesHref?: string;
-  source?: "latest" | "registry";
 };
 ---
 
@@ -73,7 +71,6 @@ const {
     <ReleaseCard
       app={app}
       platform={platform}
-      source={source}
       title={releaseTitle}
       description={releaseDescription}
       website={website}

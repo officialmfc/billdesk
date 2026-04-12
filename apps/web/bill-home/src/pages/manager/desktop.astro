@@ -36,9 +36,7 @@ const managerPlatforms = appCatalog.manager.platforms;
       <p>Pick a desktop platform, open the website, and download the latest build.</p>
     </div>
     <div class="platform-grid">
-      {managerPlatforms.map((platform) => (
-        <ReleaseCard app="manager" platform={platform.key} source="registry" summary compact />
-      ))}
+      {managerPlatforms.map((platform) => <ReleaseCard app="manager" platform={platform.key} summary compact />)}
     </div>
   </section>
 
