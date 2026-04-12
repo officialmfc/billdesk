@@ -8,14 +8,14 @@ const adminPlatforms = appCatalog.admin.platforms;
 
 <PortalLayout
   title="Admin Mobile - Bill Home"
-  description="Admin mobile release page with live registry data, website link, and latest download."
+  description="Admin mobile release page with live registry data and only published platform builds."
   tone="admin"
 >
   <section class="hero mobile-hero">
     <div class="hero-main">
       <div class="tag"><span class="dot"></span>Admin / Mobile</div>
       <h2>Admin Mobile</h2>
-      <p class="lead">Android and iOS builds for approvals, account checks, and day-to-day operations.</p>
+      <p class="lead">Only the platforms published in the live registry are shown.</p>
       <div class="mobile-strip" aria-label="Admin mobile overview">
         <span>Phone-first</span>
         <span>Approvals</span>
@@ -32,8 +32,8 @@ const adminPlatforms = appCatalog.admin.platforms;
   <section class="section">
     <div class="section-heading">
       <div class="tag"><span class="dot"></span>Builds</div>
-      <h3>Android and iOS</h3>
-      <p>Pick the platform card you want and download the latest build from R2.</p>
+      <h3>Published mobile builds</h3>
+      <p>Pick a published platform and download the exact artifact from R2.</p>
     </div>
     <div class="platform-grid">
       {adminPlatforms.map((platform) => <ReleaseCard app="admin" platform={platform.key} summary compact />)}

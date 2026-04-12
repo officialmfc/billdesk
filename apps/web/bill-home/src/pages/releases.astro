@@ -27,13 +27,13 @@ const releaseGroups = [
 
 <PortalLayout
   title="Releases - Bill Home"
-  description="Registry view for the latest MFC release entries pulled from R2."
+  description="Registry view for the published MFC release entries pulled from R2."
   tone="releases"
 >
   <section class="hero">
     <div class="hero-main">
-      <h2>Latest releases</h2>
-      <p class="lead">Live registry data from R2.</p>
+      <h2>Published releases</h2>
+      <p class="lead">Only platforms present in the live registry are shown.</p>
       <div class="hero-actions">
         <a class="button primary" href="/">Back home</a>
         <a class="button ghost" href="/manager">Manager</a>
@@ -46,7 +46,7 @@ const releaseGroups = [
       <div class="detail">
         <div class="section-heading">
           <h3>{group.title} builds</h3>
-          <p>{group.description}</p>
+          <p>{group.description} Only published platforms are rendered.</p>
         </div>
 
         <div class="platform-grid">

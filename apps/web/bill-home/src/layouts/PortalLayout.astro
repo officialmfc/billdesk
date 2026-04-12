@@ -750,14 +750,7 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
       if (Array.isArray(value)) {
         for (let index = value.length - 1; index >= 0; index -= 1) {
           const nested = findReleaseEntry(value[index], platform);
-          if (nested && matchesPlatform(nested, platform)) {
-            return nested;
-          }
-        }
-
-        for (let index = value.length - 1; index >= 0; index -= 1) {
-          const nested = findReleaseEntry(value[index]);
-          if (nested) {
+          if (nested && (!platform || matchesPlatform(nested, platform))) {
             return nested;
           }
         }
@@ -766,24 +759,15 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
       }
 
       if (value.artifact || value.version) {
-        if (matchesPlatform(value, platform)) {
+        if (!platform || matchesPlatform(value, platform)) {
           return value;
         }
 
-        if (!platform) {
-          return value;
-        }
+        return null;
       }
 
       for (const nested of Object.values(value)) {
         const entry = findReleaseEntry(nested, platform);
-        if (entry && matchesPlatform(entry, platform)) {
-          return entry;
-        }
-      }
-
-      for (const nested of Object.values(value)) {
-        const entry = findReleaseEntry(nested);
         if (entry) {
           return entry;
         }
@@ -864,10 +848,11 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
       }
     }
 
-    function updateReleaseCard(card, registry) {
+    function updateReleaseCard(card, registry, registryLoaded) {
       const app = card.dataset.app;
       const platform = card.dataset.platform || "";
       const release = pickEntry(registry, app, platform);
+      const shouldHide = registryLoaded && platform && !release;
       const pageRoute = card.dataset.pageRoute || "";
       const fallbackWebsite = card.dataset.fallbackWebsite || "";
       const summary = entrySummary(release, fallbackWebsite);
@@ -892,6 +877,15 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
       const websiteLink = card.querySelector("[data-website]");
       const pageLink = card.querySelector("[data-page-link]");
       const downloadLink = card.querySelector("[data-download]");
+
+      if (shouldHide) {
+        card.hidden = true;
+        card.setAttribute("aria-hidden", "true");
+        return;
+      }
+
+      card.hidden = false;
+      card.removeAttribute("aria-hidden");
 
       if (title) {
         title.textContent = card.dataset.cardTitle || appMeta[app]?.title || (pageRoute.includes("manager")
@@ -947,18 +941,20 @@ const shellStyle = `--accent:${toneStyle.accent};--accent-strong:${toneStyle.acc
 
     async function loadRegistry() {
       let registry = null;
+      let registryLoaded = false;
 
       try {
         const response = await fetch(registryUrl, { cache: "no-store" });
         if (response.ok) {
           registry = await response.json();
+          registryLoaded = true;
         }
       } catch (_) {
         registry = null;
       }
 
       document.querySelectorAll("[data-release-card]").forEach((card) => {
-        updateReleaseCard(card, registry);
+        updateReleaseCard(card, registry, registryLoaded);
       });
     }
 

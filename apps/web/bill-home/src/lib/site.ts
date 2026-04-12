@@ -156,15 +156,16 @@ export function fallbackWebsite(app: AppKey) {
   return appCatalog[app].website;
 }
 
-export function findReleaseEntry(value: unknown): ReleaseEntry | null {
+export function findReleaseEntry(value: unknown, platform?: PlatformKey): ReleaseEntry | null {
   if (!value || typeof value !== "object") {
     return null;
   }
 
   if (Array.isArray(value)) {
+    const normalizedPlatform = platform?.toLowerCase();
     for (let index = value.length - 1; index >= 0; index -= 1) {
-      const nested = findReleaseEntry(value[index]);
-      if (nested) {
+      const nested = findReleaseEntry(value[index], platform);
+      if (nested && (!normalizedPlatform || String(nested.platform || nested.device || "").toLowerCase() === normalizedPlatform)) {
         return nested;
       }
     }
@@ -174,14 +175,28 @@ export function findReleaseEntry(value: unknown): ReleaseEntry | null {
 
   const candidate = value as Record<string, unknown>;
   if (candidate.artifact || candidate.version) {
+    if (platform) {
+      const normalizedPlatform = platform.toLowerCase();
+      const candidatePlatform = String(candidate.platform || candidate.device || "").toLowerCase();
+      if (candidatePlatform === normalizedPlatform) {
+        return value as ReleaseEntry;
+      }
+
+      return null;
+    }
+
     return value as ReleaseEntry;
   }
 
   for (const nested of Object.values(candidate)) {
-    const entry = findReleaseEntry(nested);
+    const entry = findReleaseEntry(nested, platform);
     if (entry) {
       return entry;
     }
+  }
+
+  if (platform) {
+    return null;
   }
 
   return null;

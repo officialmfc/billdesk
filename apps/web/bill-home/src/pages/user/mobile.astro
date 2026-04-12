@@ -8,14 +8,14 @@ const userPlatforms = appCatalog.user.platforms;
 
 <PortalLayout
   title="User Mobile - Bill Home"
-  description="User mobile release page with live registry data, website link, and latest download."
+  description="User mobile release page with live registry data and only published platform builds."
   tone="user"
 >
   <section class="hero user-hero">
     <div class="hero-main">
       <div class="tag"><span class="dot"></span>User / Mobile</div>
       <h2>User Mobile</h2>
-      <p class="lead">Android and iOS builds for bills, orders, statements, and notifications.</p>
+      <p class="lead">Only the platforms published in the live registry are shown.</p>
       <div class="user-strip" aria-label="User mobile overview">
         <span>Bills</span>
         <span>Orders</span>
@@ -32,8 +32,8 @@ const userPlatforms = appCatalog.user.platforms;
   <section class="section">
     <div class="section-heading">
       <div class="tag"><span class="dot"></span>Builds</div>
-      <h3>Android and iPhone / iPad</h3>
-      <p>Pick the platform card you want and download the latest build from R2.</p>
+      <h3>Published mobile builds</h3>
+      <p>Pick a published platform and download the exact artifact from R2.</p>
     </div>
     <div class="platform-grid">
       {userPlatforms.map((platform) => <ReleaseCard app="user" platform={platform.key} summary compact />)}
