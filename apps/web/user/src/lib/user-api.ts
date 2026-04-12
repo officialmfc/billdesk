@@ -570,8 +570,8 @@ export function getCurrentDateIST(): string {
   }).format(new Date());
 }
 
-export async function syncCurrentUserData(): Promise<void> {
-  const authUser = await getSessionUser();
+export async function syncCurrentUserData(authUserId?: string): Promise<void> {
+  const authUser = authUserId ? { id: authUserId } : await getSessionUser();
 
   if (!authUser) {
     return;
@@ -608,8 +608,8 @@ export async function syncCurrentUserData(): Promise<void> {
   await commitSyncCheckpoints(checkpoints);
 }
 
-export async function getCurrentUserProfile(): Promise<UserProfile | null> {
-  const authUser = await getSessionUser();
+export async function getCurrentUserProfile(authUserId?: string): Promise<UserProfile | null> {
+  const authUser = authUserId ? { id: authUserId } : await getSessionUser();
 
   if (!authUser) {
     return null;
@@ -618,7 +618,7 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
   let row = await getCachedCurrentUser(authUser.id);
 
   if (!row) {
-    await syncCurrentUserData();
+    await syncCurrentUserData(authUser.id);
     row = await getCachedCurrentUser(authUser.id);
   }
 

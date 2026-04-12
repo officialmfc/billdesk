@@ -121,15 +121,13 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
         const optimisticProfile = buildFallbackUserProfileFromSession(sessionHint);
         if (optimisticProfile) {
           setProfile(optimisticProfile);
+          setIsLoading(false);
           authLog("session metadata fallback profile loaded", {
             userId: optimisticProfile.id,
             userType: optimisticProfile.userType,
             role: optimisticProfile.defaultRole,
           });
         }
-        setIsLoading(false);
-      } else {
-        setIsLoading(true);
       }
 
       const session =
@@ -156,120 +154,44 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
       const sessionToken = session.access_token;
       if (sessionToken && lastSuccessfulSessionTokenRef.current === sessionToken) {
         authLog("session already hydrated; skipping duplicate restore");
-        setIsLoading(false);
         return;
       }
 
-      const fallbackProfile = buildFallbackUserProfileFromSession(session);
+      const authUserId = session.user.id;
 
+      // Fire-and-forget — lease was already claimed during handoff; this is just a keepalive
+      void touchHostedUserWebDeviceLease(sessionToken).catch((error) => {
+        authLog("device lease touch failed (non-blocking)", error);
+      });
+
+      // Sync and load fresh profile — pass userId directly, no getSession() needed
       try {
-        authLog("touching hosted user web device lease");
-        await withTimeout(
-          touchHostedUserWebDeviceLease(),
-          USER_SESSION_TIMEOUT_MS,
-          "touchHostedUserWebDeviceLease"
-        );
+        authLog("syncing current user data");
+        await withTimeout(syncCurrentUserData(authUserId), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes("timed out")) {
-          throw error;
+        if (isCurrent()) {
+          authLog("sync failed, using cached data", error instanceof Error ? error.message : String(error));
         }
-        authLog("device lease touch timed out; continuing with profile fallback");
-      }
-
-      let cachedProfile: UserProfile | null = null;
-      try {
-        cachedProfile = await withTimeout(
-          getCurrentUserProfile(),
-          USER_SESSION_TIMEOUT_MS,
-          "getCurrentUserProfile"
-        );
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes("timed out")) {
-          throw error;
-        }
-        authLog("getCurrentUserProfile timed out; continuing with session fallback");
-      }
-
-      if (cachedProfile && isCurrent()) {
-        setProfile(cachedProfile);
-        lastSuccessfulSessionTokenRef.current = sessionToken;
-        authLog("cached profile loaded", {
-          userId: cachedProfile.id,
-          userType: cachedProfile.userType,
-          role: cachedProfile.defaultRole,
-        });
-      } else if (fallbackProfile && isCurrent()) {
-        setProfile(fallbackProfile);
-        lastSuccessfulSessionTokenRef.current = sessionToken;
-        authLog("session metadata fallback profile loaded", {
-          userId: fallbackProfile.id,
-          userType: fallbackProfile.userType,
-          role: fallbackProfile.defaultRole,
-        });
       }
 
       if (!isCurrent()) {
         return;
       }
 
-      const runBackgroundSync = () => {
-        void (async () => {
-          try {
-            authLog("syncing current user data");
-            await withTimeout(syncCurrentUserData(), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
-            const freshProfile = await withTimeout(
-              getCurrentUserProfile(),
-              USER_SESSION_TIMEOUT_MS,
-              "getCurrentUserProfile"
-            );
+      const freshProfile = await withTimeout(
+        getCurrentUserProfile(authUserId),
+        USER_SESSION_TIMEOUT_MS,
+        "getCurrentUserProfile"
+      );
 
-            if (freshProfile && isCurrent()) {
-              setProfile(freshProfile);
-              lastSuccessfulSessionTokenRef.current = sessionToken;
-              authLog("fresh profile loaded", {
-                userId: freshProfile.id,
-                userType: freshProfile.userType,
-                role: freshProfile.defaultRole,
-              });
-            }
-          } catch (error) {
-            if (isCurrent()) {
-              console.error("[UserWebAuth] sync current user data failed", error);
-            }
-          }
-        })();
-      };
-
-      if (cachedProfile || fallbackProfile) {
-        setIsLoading(false);
-        runBackgroundSync();
-        return;
-      }
-
-      try {
-        await withTimeout(syncCurrentUserData(), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
-        const freshProfile = await withTimeout(
-          getCurrentUserProfile(),
-          USER_SESSION_TIMEOUT_MS,
-          "getCurrentUserProfile"
-        );
-
-        if (freshProfile && isCurrent()) {
-          setProfile(freshProfile);
-          lastSuccessfulSessionTokenRef.current = sessionToken;
-          authLog("fresh profile loaded", {
-            userId: freshProfile.id,
-            userType: freshProfile.userType,
-            role: freshProfile.defaultRole,
-          });
-        }
-      } catch (error) {
-        if (!isCurrent()) {
-          return;
-        }
-        throw error;
+      if (freshProfile && isCurrent()) {
+        setProfile(freshProfile);
+        lastSuccessfulSessionTokenRef.current = sessionToken;
+        authLog("fresh profile loaded", {
+          userId: freshProfile.id,
+          userType: freshProfile.userType,
+          role: freshProfile.defaultRole,
+        });
       }
     } catch (error) {
       if (!isCurrent()) {

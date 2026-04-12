@@ -6,7 +6,7 @@ import {
   createAdminSessionCookie,
   readAdminSessionState,
 } from "../../auth/lib/server/admin-session";
-
+//use server-only imports to ensure these modules are not included in the client bundle
 type PagesEnv = AuthHubCloudflareEnv & {
   AUTH_CORE?: {
     fetch: (request: Request) => Promise<Response>;

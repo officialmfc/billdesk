@@ -101,7 +101,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const restoreSession = async (sessionHint?: Session | null) => {
     const restoreId = ++restoreGenerationRef.current;
     const isCurrent = () => restoreId === restoreGenerationRef.current;
-    let cachedProfile: UserProfile | null = null;
 
     try {
       if (sessionHint) {
@@ -138,8 +137,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const fallbackProfile = buildFallbackUserProfileFromSession(session);
-
       void touchHostedUserDeviceLease(session.access_token).catch((error) => {
         authLog("device lease touch failed (non-blocking)", error);
       });
@@ -148,67 +145,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      const authUserId = session.user.id;
+
       try {
-        cachedProfile = await withTimeout(
-          getCurrentUserProfile(),
-          USER_SESSION_TIMEOUT_MS,
-          "getCurrentUserProfile"
-        );
+        authLog("syncing current user data");
+        await withTimeout(syncCurrentUserData(authUserId), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes("timed out")) {
+        if (!isCurrent()) {
           throw error;
         }
-        authLog("getCurrentUserProfile timed out; continuing with session fallback");
-      }
-      if (cachedProfile) {
-        setUser(cachedProfile);
-        authLog("cached profile loaded", {
-          userId: cachedProfile.id,
-          userType: cachedProfile.userType,
-          role: cachedProfile.defaultRole,
-        });
-      } else if (fallbackProfile) {
-        cachedProfile = fallbackProfile;
-        setUser(fallbackProfile);
-        authLog("session metadata fallback profile loaded", {
-          userId: fallbackProfile.id,
-          userType: fallbackProfile.userType,
-          role: fallbackProfile.defaultRole,
-        });
+        // Non-fatal: user already sees optimistic profile; fresh load will use cache
+        authError("sync current user data failed", error);
       }
 
       if (!isCurrent()) {
         return;
       }
 
-      try {
-        authLog("syncing current user data");
-        await withTimeout(syncCurrentUserData(), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
-        const freshProfile = await withTimeout(
-          getCurrentUserProfile(),
-          USER_SESSION_TIMEOUT_MS,
-          "getCurrentUserProfile"
-        );
-        if (freshProfile && isCurrent()) {
-          authLog("fresh profile loaded", {
-            userId: freshProfile.id,
-            userType: freshProfile.userType,
-            role: freshProfile.defaultRole,
-          });
-          setUser(freshProfile);
-        }
-      } catch (error) {
-        if (!isCurrent()) {
-          throw error;
-        }
-        if (!cachedProfile) {
-          const msg = error instanceof Error ? error.message : String(error);
-          if (!msg.includes("timed out")) {
-            throw error;
-          }
-        }
-        authError("sync current user data failed", error);
+      const freshProfile = await withTimeout(
+        getCurrentUserProfile(authUserId),
+        USER_SESSION_TIMEOUT_MS,
+        "getCurrentUserProfile"
+      );
+      if (freshProfile && isCurrent()) {
+        authLog("fresh profile loaded", {
+          userId: freshProfile.id,
+          userType: freshProfile.userType,
+          role: freshProfile.defaultRole,
+        });
+        setUser(freshProfile);
       }
     } catch (error) {
       if (!isCurrent()) {

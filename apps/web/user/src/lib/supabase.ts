@@ -326,20 +326,23 @@ export async function openHostedUserPasswordReset(email?: string, next = "/bills
   window.location.assign(authUrl.toString());
 }
 
-export async function touchHostedUserWebDeviceLease(): Promise<void> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.access_token) {
-    throw new Error("No authenticated session is available.");
+export async function touchHostedUserWebDeviceLease(accessToken?: string): Promise<void> {
+  let token = accessToken;
+  if (!token) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error("No authenticated session is available.");
+    }
+    token = session.access_token;
   }
 
   const { deviceId, deviceLabel } = getBrowserDeviceContext();
   const response = await fetch(`${getAuthBaseUrl()}/api/devices/lease`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
