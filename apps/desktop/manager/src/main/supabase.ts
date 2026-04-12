@@ -1,5 +1,5 @@
 import { shell } from "electron";
-import { createSingleFlight } from "@mfc/auth";
+import { createSingleFlight } from "@mfc/auth/singleFlight";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import type { StaffProfile } from "../shared/contracts";
