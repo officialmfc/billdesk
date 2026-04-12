@@ -78,6 +78,16 @@ function setBusy(container, busy) {
   }
 }
 
+function setControlsEnabled(container, enabled) {
+  if (!container) {
+    return;
+  }
+
+  for (const element of container.querySelectorAll("button, input, select, textarea")) {
+    element.disabled = !enabled;
+  }
+}
+
 function setupPasswordToggles() {
   for (const button of document.querySelectorAll("[data-password-toggle]")) {
     if (button.dataset.passwordToggleBound === "1") {
@@ -185,7 +195,7 @@ function getAuthNote() {
 function setWorkspaceVisible(visible) {
   const workspace = getWorkspaceSection();
   if (workspace instanceof HTMLElement) {
-    workspace.hidden = !visible;
+    workspace.dataset.authenticated = visible ? "true" : "false";
   }
 }
 
@@ -263,9 +273,10 @@ function applyAdminSession(session) {
   setLoginPanelVisible(!authenticated);
   setWorkspaceVisible(authenticated);
   setActionButtonsEnabled(authenticated);
+  setControlsEnabled(getQueryElement("#admin-form"), authenticated);
 
   if (!authenticated) {
-    renderEmptyState();
+    renderEmptyState(true);
   }
 }
 
@@ -330,14 +341,16 @@ async function submitAdminLogout() {
   return payload;
 }
 
-function renderEmptyState() {
+function renderEmptyState(locked = false) {
   const accountsEl = getQueryElement("[data-admin-accounts]");
   const devicesEl = getQueryElement("[data-admin-devices]");
   const rateLimitsEl = getQueryElement("[data-admin-rate-limits]");
   const summaryEl = getQueryElement("[data-admin-summary]");
 
   if (summaryEl instanceof HTMLElement) {
-    summaryEl.innerHTML = `<p class="small">Search by email to load account rows, devices, and rate-limit entries.</p>`;
+    summaryEl.innerHTML = locked
+      ? `<p class="small">Sign in to unlock account rows, devices, and rate-limit entries.</p>`
+      : `<p class="small">Search by email to load account rows, devices, and rate-limit entries.</p>`;
   }
 
   if (accountsEl instanceof HTMLElement) {
@@ -576,7 +589,7 @@ async function bootAdmin() {
   setLoginPanelVisible(true);
   setWorkspaceVisible(false);
   setActionButtonsEnabled(false);
-  renderEmptyState();
+  renderEmptyState(true);
 
   async function recoverFromAdminAuthError() {
     try {
@@ -743,7 +756,7 @@ async function bootAdmin() {
       if (initialEmail) {
         await runSearch();
       } else {
-        renderEmptyState();
+        renderEmptyState(false);
       }
     } catch (error) {
       setLoginStatus(error instanceof Error ? error.message : "Could not sign in.", "error");
@@ -773,7 +786,7 @@ async function bootAdmin() {
       applyAdminSession(session);
       if (!session.authenticated) {
         setLoginStatus("Signed out of the preset password session.", "success");
-        renderEmptyState();
+        renderEmptyState(true);
       } else {
         setLoginStatus("Cloudflare Access remains active on this request.", "info");
       }
@@ -792,9 +805,10 @@ async function bootAdmin() {
       if (initialEmail) {
         await runSearch();
       } else {
-        renderEmptyState();
+        renderEmptyState(false);
       }
     } else {
+      renderEmptyState(true);
       setLoginStatus(
         currentSession.passwordConfigured
           ? "Enter the preset password to open the workspace."
@@ -810,6 +824,7 @@ async function bootAdmin() {
       mode: null,
       passwordConfigured: false,
     });
+    renderEmptyState(true);
   }
 }
 
