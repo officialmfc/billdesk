@@ -316,16 +316,31 @@ export function UserAppProvider({ children }: { children: React.ReactNode }): Re
 
   const refreshProfile = async () => {
     const authUserId = authUserIdRef.current;
-    if (authUserId) {
-      await withTimeout(syncCurrentUserData(authUserId), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
-      const nextProfile = await getCurrentUserProfile(authUserId);
-      setProfile(nextProfile);
+    const sessionToken = lastSuccessfulSessionTokenRef.current;
+
+    if (!authUserId || !sessionToken) {
       return;
     }
 
-    await withTimeout(syncCurrentUserData(), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
-    const nextProfile = await getCurrentUserProfile();
-    setProfile(nextProfile);
+    try {
+      const snapshot = await withTimeout(
+        fetchAuthBootstrapSnapshot(sessionToken),
+        2500,
+        "auth bootstrap"
+      );
+
+      setAuthBootstrap(snapshot);
+      if (snapshot.profile) {
+        setProfile(snapshot.profile);
+      }
+      await writeCachedAuthBootstrapSnapshot(authUserId, snapshot);
+    } catch (error) {
+      authLog("refresh profile failed", error instanceof Error ? error.message : String(error));
+    }
+
+    void syncCurrentUserData(authUserId).catch((error) => {
+      authLog("refresh sync failed (non-blocking)", error);
+    });
   };
 
   const logout = async () => {

@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Card, Text } from "react-native-paper";
 
@@ -19,21 +19,43 @@ export default function BillDetailScreen() {
   const { billId } = useLocalSearchParams<{ billId?: string }>();
   const { user } = useAuth();
   const [bill, setBill] = useState<UserBillDetail | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const load = async () => {
-      if (!user?.id || !billId) {
+      const authUserId = user?.id;
+      if (!authUserId || !billId) {
+        if (isMountedRef.current) {
+          setBill(null);
+        }
         return;
       }
 
-      setBill(await getUserBillDetail(user.id, billId));
-
-      try {
-        await syncCurrentUserData();
-        setBill(await getUserBillDetail(user.id, billId));
-      } catch {
-        // Keep cached bill detail visible.
+      const nextBill = await getUserBillDetail(authUserId, billId);
+      if (isMountedRef.current) {
+        setBill(nextBill);
       }
+
+      void syncCurrentUserData(authUserId)
+        .then(async () => {
+          if (!isMountedRef.current) {
+            return;
+          }
+
+          const refreshedBill = await getUserBillDetail(authUserId, billId);
+          if (isMountedRef.current) {
+            setBill(refreshedBill);
+          }
+        })
+        .catch((error) => {
+          console.info("[UserMobile] bill refresh failed (non-blocking)", error);
+        });
     };
 
     void load();

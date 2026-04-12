@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppState, Linking, type AppStateStatus } from "react-native";
-import { captureAppException } from "@mfc/auth";
+import { captureAppException, fetchAuthHubBootstrapSnapshot } from "@mfc/auth";
 import type { Session } from "@supabase/supabase-js";
 
 import {
@@ -29,6 +29,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const ADMIN_SESSION_TIMEOUT_MS = 10_000;
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 4_000;
 
 function authLog(message: string, extra?: unknown): void {
   if (extra === undefined) {
@@ -40,12 +41,12 @@ function authLog(message: string, extra?: unknown): void {
 }
 
 function authError(message: string, error: unknown): void {
-  void captureAppException(error, {
-    app: "admin-mobile",
-    context: "auth",
-    message,
-  });
-  console.error(`[AdminAuth] ${message}`, error);
+      void captureAppException(error, {
+        app: "admin-mobile",
+        context: "auth",
+        message,
+      });
+      console.error(`[AdminAuth] ${message}`, error);
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
@@ -88,42 +89,22 @@ function buildFallbackAdminProfileFromSession(session: {
   };
 }
 
-async function getAdminProfile(email: string | null): Promise<AdminProfile | null> {
-  const { data, error } = await withTimeout(
-    (async () => await supabase.rpc("get_current_admin_profile"))(),
-    ADMIN_SESSION_TIMEOUT_MS,
-    "get_current_admin_profile"
-  );
-
-  if (error) {
-    authError("get_current_admin_profile failed", error);
-    return null;
-  }
-
-  const profile = (data as { profile?: { full_name?: string; id?: string; is_active?: boolean } | null } | null)
-    ?.profile;
-
-  if (!profile?.id || !profile.full_name) {
-    return null;
-  }
-
-  return {
-    email,
-    fullName: profile.full_name,
-    id: profile.id,
-    isActive: Boolean(profile.is_active),
-  };
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AdminProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const restoreGenerationRef = useRef(0);
+  const lastSuccessfulSessionTokenRef = useRef<string | null>(null);
   const restoreSession = async (sessionHint?: Session | null): Promise<void> => {
     const restoreId = ++restoreGenerationRef.current;
     const isCurrent = () => restoreId === restoreGenerationRef.current;
 
     try {
+      if (sessionHint?.access_token && lastSuccessfulSessionTokenRef.current === sessionHint.access_token) {
+        authLog("duplicate auth state ignored for hydrated session");
+        setIsLoading(false);
+        return;
+      }
+
       if (sessionHint) {
         const optimisticProfile = buildFallbackAdminProfileFromSession(sessionHint);
         if (optimisticProfile) {
@@ -148,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!session) {
+        lastSuccessfulSessionTokenRef.current = null;
         setUser(null);
         authLog("no session found");
         return;
@@ -163,25 +145,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      let profile: AdminProfile | null = null;
       try {
-        profile = await getAdminProfile(session.user.email ?? null);
+        const bootstrap = await withTimeout(
+          fetchAuthHubBootstrapSnapshot(session.access_token),
+          AUTH_BOOTSTRAP_TIMEOUT_MS,
+          "auth bootstrap"
+        );
+
+        const staffProfile = bootstrap.staff_profile;
+        if (staffProfile?.is_active && staffProfile.role === "admin") {
+          const profile: AdminProfile = {
+            email: session.user.email ?? null,
+            fullName: staffProfile.full_name,
+            id: staffProfile.user_id,
+            isActive: true,
+          };
+
+          authLog("auth bootstrap profile loaded", {
+            adminId: profile.id,
+            email: profile.email,
+          });
+          setUser(profile);
+          lastSuccessfulSessionTokenRef.current = session.access_token;
+          return;
+        }
+
+        if (staffProfile && staffProfile.role !== "admin") {
+          throw new Error("Unauthorized: This mobile app is available to admin accounts only");
+        }
+
+        if (staffProfile && !staffProfile.is_active) {
+          throw new Error("Your account is inactive. Please contact an administrator.");
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (!message.includes("timed out")) {
-          throw error;
+          if (message.includes("Unauthorized") || message.includes("inactive")) {
+            throw error;
+          }
+          authError("auth bootstrap failed", error);
+        } else {
+          authLog("auth bootstrap timed out; continuing with session fallback");
         }
-        authLog("getAdminProfile timed out; continuing with session fallback");
-      }
-      if (!profile && fallbackProfile) {
-        authLog("using session metadata fallback for admin profile");
-        profile = fallbackProfile;
       }
 
       if (!isCurrent()) {
         return;
       }
 
+      const profile = fallbackProfile;
       if (!profile?.isActive) {
         authLog("profile missing or inactive, clearing session");
         await supabase.auth.signOut({ scope: "local" });
@@ -192,6 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       authLog("session restored", { adminId: profile.id, email: profile.email });
       setUser(profile);
+      lastSuccessfulSessionTokenRef.current = session.access_token;
     } catch (error) {
       if (!isCurrent()) {
         return;
@@ -200,6 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authError("restore session failed", error);
       await supabase.auth.signOut({ scope: "local" });
       await clearPersistedSupabaseSession();
+      lastSuccessfulSessionTokenRef.current = null;
       setUser(null);
     } finally {
       if (isCurrent()) {
@@ -335,6 +349,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut({ scope: "local" });
       await clearPersistedSupabaseSession();
       setUser(null);
+      lastSuccessfulSessionTokenRef.current = null;
     } finally {
       setIsLoading(false);
     }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 import { Card, Text } from "react-native-paper";
@@ -20,31 +20,60 @@ export default function HistoryScreen() {
   const { user } = useAuth();
   const [rows, setRows] = useState<UserHistoryRow[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const isMountedRef = useRef(true);
 
   const load = async (refreshRemote = true) => {
-    if (!user?.id) {
+    const authUserId = user?.id;
+    if (!authUserId) {
+      if (isMountedRef.current) {
+        setRefreshing(false);
+      }
       return;
     }
-    setRefreshing(true);
-    try {
-      setRows(await getUserHistory(user.id));
 
-      if (refreshRemote) {
-        try {
-          await syncCurrentUserData();
-          setRows(await getUserHistory(user.id));
-        } catch {
-          // Keep the cached history visible when refresh fails.
-        }
+    if (isMountedRef.current) {
+      setRefreshing(true);
+    }
+    try {
+      const nextRows = await getUserHistory(authUserId);
+      if (isMountedRef.current) {
+        setRows(nextRows);
       }
     } finally {
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setRefreshing(false);
+      }
     }
+
+    if (!refreshRemote) {
+      return;
+    }
+
+    void syncCurrentUserData(authUserId)
+      .then(async () => {
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        const nextRows = await getUserHistory(authUserId);
+        if (isMountedRef.current) {
+          setRows(nextRows);
+        }
+      })
+      .catch((error) => {
+        console.info("[UserMobile] history refresh failed (non-blocking)", error);
+      });
   };
 
   useEffect(() => {
     void load(true);
   }, [user?.id]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const filteredRows = useMemo(
     () => rows.filter((row) => row.kind === "bill" || row.kind === "payment"),

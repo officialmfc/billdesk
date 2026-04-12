@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppState, Linking, type AppStateStatus } from "react-native";
-import { captureAppException } from "@mfc/auth";
+import { captureAppException, fetchAuthHubBootstrapSnapshot } from "@mfc/auth";
 import type { Session } from "@supabase/supabase-js";
 
 import {
@@ -12,7 +12,6 @@ import {
 } from "@/lib/supabase";
 import {
   clearUserAppCache,
-  getCurrentUserProfile,
   syncCurrentUserData,
   type UserProfile,
 } from "@/lib/user-api";
@@ -29,6 +28,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const USER_SESSION_TIMEOUT_MS = 10_000;
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 4_000;
 
 function authLog(message: string, extra?: unknown): void {
   if (extra === undefined) {
@@ -98,11 +98,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const restoreGenerationRef = useRef(0);
+  const lastSuccessfulSessionTokenRef = useRef<string | null>(null);
+  const authUserIdRef = useRef<string | null>(null);
   const restoreSession = async (sessionHint?: Session | null) => {
     const restoreId = ++restoreGenerationRef.current;
     const isCurrent = () => restoreId === restoreGenerationRef.current;
 
     try {
+      if (sessionHint?.access_token && lastSuccessfulSessionTokenRef.current === sessionHint.access_token) {
+        authLog("duplicate auth state ignored for hydrated session");
+        setIsLoading(false);
+        return;
+      }
+
       if (sessionHint) {
         const optimisticProfile = buildFallbackUserProfileFromSession(sessionHint);
         if (optimisticProfile) {
@@ -132,6 +140,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!session) {
+        lastSuccessfulSessionTokenRef.current = null;
+        authUserIdRef.current = null;
         setUser(null);
         authLog("no session found");
         return;
@@ -145,36 +155,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const authUserId = session.user.id;
-
+      authUserIdRef.current = session.user.id;
+      let snapshotProfile: UserProfile | null = null;
       try {
-        authLog("syncing current user data");
-        await withTimeout(syncCurrentUserData(authUserId), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
+        const bootstrap = await withTimeout(
+          fetchAuthHubBootstrapSnapshot(session.access_token),
+          AUTH_BOOTSTRAP_TIMEOUT_MS,
+          "auth bootstrap"
+        );
+        snapshotProfile = bootstrap.profile;
+        if (snapshotProfile) {
+          authLog("auth bootstrap profile loaded", {
+            userId: snapshotProfile.id,
+            userType: snapshotProfile.userType,
+            role: snapshotProfile.defaultRole,
+          });
+        }
       } catch (error) {
         if (!isCurrent()) {
           throw error;
         }
-        // Non-fatal: user already sees optimistic profile; fresh load will use cache
-        authError("sync current user data failed", error);
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes("timed out")) {
+          authError("auth bootstrap failed", error);
+        } else {
+          authLog("auth bootstrap timed out; continuing with session metadata");
+        }
       }
 
       if (!isCurrent()) {
         return;
       }
 
-      const freshProfile = await withTimeout(
-        getCurrentUserProfile(authUserId),
-        USER_SESSION_TIMEOUT_MS,
-        "getCurrentUserProfile"
-      );
-      if (freshProfile && isCurrent()) {
-        authLog("fresh profile loaded", {
-          userId: freshProfile.id,
-          userType: freshProfile.userType,
-          role: freshProfile.defaultRole,
-        });
-        setUser(freshProfile);
+      const fallbackProfile = buildFallbackUserProfileFromSession(session);
+      const nextProfile = snapshotProfile ?? fallbackProfile;
+
+      if (!nextProfile) {
+        throw new Error("Unable to verify your user profile right now.");
       }
+
+      setUser(nextProfile);
+      lastSuccessfulSessionTokenRef.current = session.access_token;
+
+      void syncCurrentUserData(session.user.id).catch((error) => {
+        authLog("sync current user data failed (non-blocking)", error);
+      });
     } catch (error) {
       if (!isCurrent()) {
         return;
@@ -182,8 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes("timed out")) {
-        authError("restore session timed out, will retry", error);
-        setTimeout(() => void restoreSession(), 2000);
+        authLog("restore session timed out; keeping optimistic state");
         return;
       }
 
@@ -191,6 +215,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut({ scope: "local" });
       await clearPersistedSupabaseSession();
       await clearUserAppCache();
+      lastSuccessfulSessionTokenRef.current = null;
+      authUserIdRef.current = null;
       setUser(null);
     } finally {
       if (isCurrent()) {
@@ -312,12 +338,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshProfile = async () => {
+    const authUserId = authUserIdRef.current;
+    if (!authUserId) {
+      return;
+    }
+
     try {
-      await withTimeout(syncCurrentUserData(), USER_SESSION_TIMEOUT_MS, "syncCurrentUserData");
-    } finally {
-      setUser(
-        await withTimeout(getCurrentUserProfile(), USER_SESSION_TIMEOUT_MS, "getCurrentUserProfile")
+      const { data: { session } } = await withTimeout(
+        supabase.auth.getSession(),
+        USER_SESSION_TIMEOUT_MS,
+        "supabase.auth.getSession"
       );
+
+      if (!session?.access_token) {
+        return;
+      }
+
+      const bootstrap = await withTimeout(
+        fetchAuthHubBootstrapSnapshot(session.access_token),
+        AUTH_BOOTSTRAP_TIMEOUT_MS,
+        "auth bootstrap"
+      );
+
+      if (bootstrap.profile) {
+        setUser(bootstrap.profile);
+      }
+    } catch (error) {
+      authLog("refresh profile failed", error);
     }
   };
 
@@ -349,6 +396,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await clearPersistedSupabaseSession();
       await clearUserAppCache();
       setUser(null);
+      lastSuccessfulSessionTokenRef.current = null;
+      authUserIdRef.current = null;
     } finally {
       setIsLoading(false);
     }

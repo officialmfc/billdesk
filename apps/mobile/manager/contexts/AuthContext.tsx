@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { AppState, Linking, type AppStateStatus } from 'react-native';
-import { captureAppException } from '@mfc/auth';
+import { captureAppException, fetchAuthHubBootstrapSnapshot } from '@mfc/auth';
 import type { Session } from "@supabase/supabase-js";
 import {
   clearPersistedSupabaseSession,
@@ -9,7 +9,7 @@ import {
   touchHostedManagerDeviceLease,
   supabase,
 } from '@/lib/supabase';
-import { rpcService, StaffProfile } from '@/lib/rpc-service';
+import { StaffProfile } from '@/lib/rpc-service';
 import { ErrorHandler } from '@/lib/error-handler';
 import { syncEngine } from '@/lib/sync-engine';
 
@@ -24,6 +24,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const MANAGER_SESSION_TIMEOUT_MS = 10_000;
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 4_000;
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
   return Promise.race([
@@ -70,11 +71,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<StaffProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const restoreGenerationRef = useRef(0);
+  const lastSuccessfulSessionTokenRef = useRef<string | null>(null);
   const restoreSession = async (sessionHint?: Session | null): Promise<void> => {
     const restoreId = ++restoreGenerationRef.current;
     const isCurrent = () => restoreId === restoreGenerationRef.current;
 
     try {
+      if (sessionHint?.access_token && lastSuccessfulSessionTokenRef.current === sessionHint.access_token) {
+        console.info("[ManagerAuth] duplicate auth state ignored for hydrated session");
+        setIsLoading(false);
+        return;
+      }
+
       if (sessionHint) {
         const optimisticProfile = buildFallbackManagerProfileFromSession(sessionHint);
         if (optimisticProfile) {
@@ -98,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!session) {
+        lastSuccessfulSessionTokenRef.current = null;
         setUser(null);
         void syncEngine.disconnectAndClear().catch((error) => {
           void captureAppException(error, {
@@ -120,34 +129,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      let profile: StaffProfile | null = null;
       try {
-        profile = await withTimeout(
-          loadProfileFromCurrentSession(),
-          MANAGER_SESSION_TIMEOUT_MS,
-          "get_current_manager_info"
+        const bootstrap = await withTimeout(
+          fetchAuthHubBootstrapSnapshot(session.access_token),
+          AUTH_BOOTSTRAP_TIMEOUT_MS,
+          "auth bootstrap"
         );
+
+        const staffProfile = bootstrap.staff_profile;
+        if (staffProfile?.is_active && staffProfile.role === "manager") {
+          const profile: StaffProfile = {
+            user_id: staffProfile.user_id,
+            user_role: "manager",
+            is_active: true,
+            display_name: staffProfile.display_name,
+            full_name: staffProfile.full_name,
+          };
+
+          console.info("[ManagerAuth] auth bootstrap profile loaded", {
+            managerId: profile.user_id,
+            role: profile.user_role,
+          });
+          setUser(profile);
+          lastSuccessfulSessionTokenRef.current = session.access_token;
+          return;
+        }
+
+        if (staffProfile && staffProfile.role !== "manager") {
+          throw new Error("Unauthorized: This mobile app is available to manager accounts only");
+        }
+
+        if (staffProfile && !staffProfile.is_active) {
+          throw new Error('Your account is inactive. Please contact an administrator.');
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (!message.includes("timed out")) {
-          throw error;
+          if (message.includes("Unauthorized") || message.includes("inactive")) {
+            throw error;
+          }
+          console.info("[ManagerAuth] auth bootstrap failed", error);
+        } else {
+          console.info("[ManagerAuth] auth bootstrap timed out; continuing with fallback");
         }
-        console.info("[ManagerAuth] profile lookup timed out; continuing with fallback");
-      }
-
-      if (!profile && fallbackProfile) {
-        profile = fallbackProfile;
       }
 
       if (!isCurrent()) {
         return;
       }
 
+      const profile = fallbackProfile;
+
       if (!profile) {
         throw new Error("Unable to verify your manager profile right now.");
       }
 
       setUser(profile);
+      lastSuccessfulSessionTokenRef.current = session.access_token;
     } catch (error) {
       if (!isCurrent()) {
         return;
@@ -169,6 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
       await clearPersistedSupabaseSession().catch(() => undefined);
+      lastSuccessfulSessionTokenRef.current = null;
       setUser(null);
     } finally {
       if (isCurrent()) {
@@ -248,26 +287,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
   }, []);
 
-  const loadProfileFromCurrentSession = async (): Promise<StaffProfile | null> => {
-    const profile = await rpcService.getCurrentUserInfo();
-
-    if (!profile) {
-      return null;
-    }
-
-    if (!profile.is_active) {
-      await supabase.auth.signOut({ scope: 'local' });
-      throw new Error('Your account is inactive. Please contact an administrator.');
-    }
-
-    if (profile.user_role !== 'manager') {
-      await supabase.auth.signOut({ scope: 'local' });
-      throw new Error('Unauthorized: This mobile app is available to manager accounts only');
-    }
-
-    return profile;
-  };
-
   const handleIncomingUrl = async (url: string): Promise<boolean> => {
     try {
       console.info("[ManagerAuth] completing oauth redirect", { url });
@@ -337,6 +356,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cleanupError = cleanupError ?? error;
     } finally {
       setUser(null);
+      lastSuccessfulSessionTokenRef.current = null;
       setIsLoading(false);
     }
 

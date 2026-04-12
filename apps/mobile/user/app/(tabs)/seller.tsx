@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Card, SegmentedButtons, Text } from "react-native-paper";
 
@@ -41,34 +41,68 @@ export default function SellerScreen() {
   const [historyRows, setHistoryRows] = useState<UserHistoryRow[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [mode, setMode] = useState<"day" | "history">("day");
+  const isMountedRef = useRef(true);
 
   const load = async (refreshRemote = true) => {
-    if (!user?.id) {
+    const authUserId = user?.id;
+    if (!authUserId) {
+      if (isMountedRef.current) {
+        setRefreshing(false);
+      }
       return;
     }
 
-    setRefreshing(true);
+    if (isMountedRef.current) {
+      setRefreshing(true);
+    }
     try {
-      setData(await getUserTodayData(user.id, dateStr));
-      setHistoryRows(await getUserHistory(user.id));
-
-      if (refreshRemote) {
-        try {
-          await syncCurrentUserData();
-          setData(await getUserTodayData(user.id, dateStr));
-          setHistoryRows(await getUserHistory(user.id));
-        } catch {
-          // Keep cached seller data visible.
-        }
+      const [nextData, nextHistoryRows] = await Promise.all([
+        getUserTodayData(authUserId, dateStr),
+        getUserHistory(authUserId),
+      ]);
+      if (isMountedRef.current) {
+        setData(nextData);
+        setHistoryRows(nextHistoryRows);
       }
     } finally {
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setRefreshing(false);
+      }
     }
+
+    if (!refreshRemote) {
+      return;
+    }
+
+    void syncCurrentUserData(authUserId)
+      .then(async () => {
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        const [nextData, nextHistoryRows] = await Promise.all([
+          getUserTodayData(authUserId, dateStr),
+          getUserHistory(authUserId),
+        ]);
+        if (isMountedRef.current) {
+          setData(nextData);
+          setHistoryRows(nextHistoryRows);
+        }
+      })
+      .catch((error) => {
+        console.info("[UserMobile] seller refresh failed (non-blocking)", error);
+      });
   };
 
   useEffect(() => {
     void load(true);
   }, [dateStr, user?.id]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const sellerHistoryRows = useMemo(
     () => historyRows.filter((row) => row.kind === "chalan" || row.kind === "payout"),

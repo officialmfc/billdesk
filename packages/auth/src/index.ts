@@ -17,6 +17,13 @@ export { SessionManager } from './SessionManager';
 export { SecureSessionManager } from './SecureSessionManager';
 export { createSingleFlight, type SingleFlightRunner } from './singleFlight';
 export { AppSentryBoundary, captureAppException, initializeAppSentry } from "./sentry";
+export {
+  fetchAuthHubBootstrapSnapshot,
+  type AuthHubBootstrapAccess,
+  type AuthHubBootstrapSnapshot,
+  type AuthHubBootstrapStaffProfile,
+  type AuthHubBootstrapUserProfile,
+} from "./authBootstrap";
 
 // Export utility functions
 export { cacheProfile, loadCachedProfile, validateProfile } from './utils';

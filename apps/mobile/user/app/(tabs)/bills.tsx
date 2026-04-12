@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Button, Card, Text } from "react-native-paper";
@@ -39,32 +39,60 @@ export default function BillsScreen() {
   const [dateStr, setDateStr] = useState(getCurrentDateIST());
   const [data, setData] = useState<UserTodayData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const isMountedRef = useRef(true);
 
   const load = async (refreshRemote = true) => {
-    if (!user?.id) {
+    const authUserId = user?.id;
+    if (!authUserId) {
+      if (isMountedRef.current) {
+        setRefreshing(false);
+      }
       return;
     }
 
-    setRefreshing(true);
+    if (isMountedRef.current) {
+      setRefreshing(true);
+    }
     try {
-      setData(await getUserTodayData(user.id, dateStr));
-
-      if (refreshRemote) {
-        try {
-          await syncCurrentUserData();
-          setData(await getUserTodayData(user.id, dateStr));
-        } catch {
-          // Keep cached day data visible.
-        }
+      const nextData = await getUserTodayData(authUserId, dateStr);
+      if (isMountedRef.current) {
+        setData(nextData);
       }
     } finally {
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setRefreshing(false);
+      }
     }
+
+    if (!refreshRemote) {
+      return;
+    }
+
+    void syncCurrentUserData(authUserId)
+      .then(async () => {
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        const nextData = await getUserTodayData(authUserId, dateStr);
+        if (isMountedRef.current) {
+          setData(nextData);
+        }
+      })
+      .catch((error) => {
+        console.info("[UserMobile] bill refresh failed (non-blocking)", error);
+      });
   };
 
   useEffect(() => {
     void load(true);
   }, [dateStr, user?.id]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const dayTotal = useMemo(
     () => (data?.buyerBills ?? []).reduce((sum, bill) => sum + bill.totalAmount, 0),

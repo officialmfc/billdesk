@@ -614,14 +614,7 @@ export async function getCurrentUserProfile(authUserId?: string): Promise<UserPr
     return null;
   }
 
-  let row = await getCachedCurrentUser(authUser.id);
-
-  if (!row) {
-    await syncCurrentUserData(authUser.id);
-    row = await getCachedCurrentUser(authUser.id);
-  }
-
-  return toUserProfile(row);
+  return toUserProfile(await getCachedCurrentUser(authUser.id));
 }
 
 export async function getUserTodayData(userId: string, dateStr: string): Promise<UserTodayData> {

@@ -218,6 +218,14 @@ type AuthBootstrapProfile = {
   userType: "business" | "vendor";
 };
 
+type AuthBootstrapStaffProfile = {
+  display_name: string;
+  full_name: string;
+  is_active: boolean;
+  role: "admin" | "manager" | "mfc_seller" | string;
+  user_id: string;
+};
+
 async function loadBootstrapUserProfile(authUserId: string): Promise<AuthBootstrapProfile | null> {
   try {
     const supabase = await createSupabaseAdminClient();
@@ -272,16 +280,52 @@ async function loadBootstrapUserProfile(authUserId: string): Promise<AuthBootstr
   }
 }
 
+async function loadBootstrapStaffProfile(authUserId: string): Promise<AuthBootstrapStaffProfile | null> {
+  try {
+    const supabase = await createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("mfc_staff")
+      .select("id, full_name, role, is_active")
+      .eq("id", authUserId)
+      .maybeSingle<{
+        full_name: string | null;
+        id: string;
+        is_active: boolean | null;
+        role: string | null;
+      }>();
+
+    if (error || !data?.id || !data.full_name || !data.role || typeof data.is_active !== "boolean") {
+      return null;
+    }
+
+    return {
+      display_name: data.full_name,
+      full_name: data.full_name,
+      is_active: data.is_active,
+      role: data.role,
+      user_id: data.id,
+    };
+  } catch (error) {
+    await captureAuthHubError(error, {
+      route: "GET /api/bootstrap",
+      stage: "load_staff_profile",
+    }).catch(() => undefined);
+    return null;
+  }
+}
+
 async function loadAuthBootstrapState(authUserId: string): Promise<{
   account: Awaited<ReturnType<typeof getAuthAccountDirectoryRowsByAuthUserId>>[number] | null;
   accounts: Awaited<ReturnType<typeof getAuthAccountDirectoryRowsByAuthUserId>>;
   devices: Awaited<ReturnType<typeof listActiveDeviceLeases>>;
   profile: AuthBootstrapProfile | null;
+  staff_profile: AuthBootstrapStaffProfile | null;
 }> {
-  const [accounts, devices, profile] = await Promise.all([
+  const [accounts, devices, profile, staffProfile] = await Promise.all([
     getAuthAccountDirectoryRowsByAuthUserId(authUserId),
     listActiveDeviceLeases(authUserId),
     loadBootstrapUserProfile(authUserId),
+    loadBootstrapStaffProfile(authUserId),
   ]);
 
   return {
@@ -289,6 +333,7 @@ async function loadAuthBootstrapState(authUserId: string): Promise<{
     accounts,
     devices,
     profile,
+    staff_profile: staffProfile,
   };
 }
 
@@ -1304,7 +1349,7 @@ async function handleDevicesRevokeAll(request: Request): Promise<Response> {
 async function handleAccountMe(request: Request): Promise<Response> {
   try {
     const actor = await resolveActorFromBearer(request.headers.get("authorization"));
-    const { account, accounts, devices, profile } = await loadAuthBootstrapState(actor.authUserId);
+    const { account, accounts, devices, profile, staff_profile } = await loadAuthBootstrapState(actor.authUserId);
     return json({
       ok: true,
       access: actor.access,
@@ -1312,6 +1357,7 @@ async function handleAccountMe(request: Request): Promise<Response> {
       accounts,
       devices,
       profile,
+      staff_profile,
     });
   } catch (error) {
     await captureAuthHubError(error, { route: "GET /api/account" }).catch(() => undefined);
@@ -1325,7 +1371,7 @@ async function handleAccountMe(request: Request): Promise<Response> {
 async function handleAuthBootstrap(request: Request): Promise<Response> {
   try {
     const actor = await resolveActorFromBearer(request.headers.get("authorization"));
-    const { account, accounts, devices, profile } = await loadAuthBootstrapState(actor.authUserId);
+    const { account, accounts, devices, profile, staff_profile } = await loadAuthBootstrapState(actor.authUserId);
     return json({
       ok: true,
       snapshot_version: 1,
@@ -1336,6 +1382,7 @@ async function handleAuthBootstrap(request: Request): Promise<Response> {
       accounts,
       devices,
       profile,
+      staff_profile,
     });
   } catch (error) {
     await captureAuthHubError(error, { route: "GET /api/bootstrap" }).catch(() => undefined);
