@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
-import { useUserApp } from "@/components/providers/user-app-provider";
 import { completeOAuthRedirect } from "@/lib/supabase";
 
 function parseCurrentUrl() {
@@ -23,9 +22,7 @@ function sanitizeNextPath(value: string | null): string {
 }
 
 export function OAuthCallbackClient(): React.JSX.Element {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { isLoading } = useUserApp();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("Completing sign in...");
 
@@ -47,9 +44,7 @@ export function OAuthCallbackClient(): React.JSX.Element {
 
         setStatus("success");
         setMessage("Signed in. Opening your account...");
-        window.setTimeout(() => {
-          router.replace(nextPath);
-        }, 250);
+        window.location.replace(nextPath);
       } catch (error) {
         if (cancelled) {
           return;
@@ -67,7 +62,7 @@ export function OAuthCallbackClient(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [nextPath, router, searchParams]);
+  }, [nextPath, searchParams]);
 
   return (
     <main className="auth-page">
@@ -79,7 +74,7 @@ export function OAuthCallbackClient(): React.JSX.Element {
               Signing you in
             </h1>
             <p className="muted" style={{ textAlign: "center" }}>
-              {isLoading ? "Preparing your session..." : message}
+              {message}
             </p>
           </div>
 

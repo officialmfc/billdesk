@@ -29,10 +29,10 @@ export function LoginClient(): React.JSX.Element {
   }, [searchParams]);
 
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
+    if (isAuthenticated) {
       router.replace(redirectPath);
     }
-  }, [isAuthenticated, isLoading, redirectPath, router]);
+  }, [isAuthenticated, redirectPath, router]);
 
   const handleHostedLogin = async () => {
     setBusy("login");
