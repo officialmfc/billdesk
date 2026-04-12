@@ -224,7 +224,7 @@ export function UserCreationDialog({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {inviteOnly ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                Invite will be bound to {existingUserLabel || "the selected user row"}.
+                Invite will be bound to {existingUserLabel || "the selected user row"} and open in the mobile app.
               </div>
             ) : (
               <FormField
@@ -279,19 +279,22 @@ export function UserCreationDialog({
 
             {authMode === "with_invite" ? (
               <>
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="user@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-muted-foreground">
+                  User invites open in the mobile app.
+                </div>
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="user@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </>
             ) : null}
             <FormField

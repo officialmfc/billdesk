@@ -966,7 +966,6 @@ export function DesktopUsersPage({
     userType: "business",
     defaultRole: "buyer",
   });
-  const [invitePlatform, setInvitePlatform] = useState<"web" | "desktop" | "mobile">("mobile");
   const [inviteResult, setInviteResult] = useState<DesktopUserInvitationResult | null>(null);
 
   const loadUsers = async () => {
@@ -1022,14 +1021,12 @@ export function DesktopUsersPage({
       userType: "business",
       defaultRole: "buyer",
     });
-    setInvitePlatform("mobile");
     setInviteResult(null);
   };
 
   const openInviteForUser = (user: DesktopUserRecord) => {
     setInviteTarget(user);
     setInviteOpen(true);
-    setInvitePlatform("mobile");
     setInviteResult(null);
     setDraft({
       authMode: "with_invite",
@@ -1069,7 +1066,7 @@ export function DesktopUsersPage({
           phone: draft.phone.trim() || null,
           userType: draft.userType,
           defaultRole: draft.defaultRole,
-          requestedPlatform: invitePlatform,
+          requestedPlatform: "mobile",
         });
         setInviteResult(invite);
         await loadUsers();
@@ -1246,17 +1243,8 @@ export function DesktopUsersPage({
                     value={draft.email ?? ""}
                   />
                 </div>
-                <div className="field-block">
-                  <label className="field-label">Invite opens on</label>
-                  <select
-                    className="text-input compact"
-                    onChange={(event) => setInvitePlatform(event.target.value as "web" | "desktop" | "mobile")}
-                    value={invitePlatform}
-                  >
-                    <option value="mobile">Mobile</option>
-                    <option value="desktop">Desktop</option>
-                    <option value="web">Web</option>
-                  </select>
+                <div className="field-block" style={{ gridColumn: "1 / -1" }}>
+                  <div className="field-helper">User invites open in the mobile app.</div>
                 </div>
               </>
             ) : null}
@@ -1346,17 +1334,8 @@ export function DesktopUsersPage({
                 value={draft.email ?? ""}
               />
             </div>
-            <div className="field-block">
-              <label className="field-label">Invite opens on</label>
-              <select
-                className="text-input compact"
-                onChange={(event) => setInvitePlatform(event.target.value as "web" | "desktop" | "mobile")}
-                value={invitePlatform}
-              >
-                <option value="mobile">Mobile</option>
-                <option value="desktop">Desktop</option>
-                <option value="web">Web</option>
-              </select>
+            <div className="field-block" style={{ gridColumn: "1 / -1" }}>
+              <div className="field-helper">This invite will open in the mobile app.</div>
             </div>
             <div className="field-block">
               <label className="field-label">Full Name</label>
