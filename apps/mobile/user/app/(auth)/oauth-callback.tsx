@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, Text } from "react-native-paper";
 
 import {
@@ -17,7 +17,6 @@ function firstParam(value: string | string[] | undefined): string | null {
 }
 
 export default function OAuthCallbackScreen() {
-  const router = useRouter();
   const params = useLocalSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -39,7 +38,6 @@ export default function OAuthCallbackScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    let redirectTimer: ReturnType<typeof setTimeout> | null = null;
 
     if (!callbackUrl) {
       return;
@@ -47,22 +45,10 @@ export default function OAuthCallbackScreen() {
 
     void (async () => {
       try {
-        const handled = await completeOAuthRedirect(callbackUrl);
-        if (cancelled) {
-          return;
-        }
-
-        if (!handled) {
-          setStatus("error");
-          setError("Could not complete sign-in.");
-          return;
-        }
-
+        await completeOAuthRedirect(callbackUrl);
+        if (cancelled) return;
         setStatus("success");
         setError(null);
-        redirectTimer = setTimeout(() => {
-          router.replace("/");
-        }, 200);
       } catch (reason) {
         if (!cancelled) {
           setStatus("error");
@@ -73,11 +59,8 @@ export default function OAuthCallbackScreen() {
 
     return () => {
       cancelled = true;
-      if (redirectTimer) {
-        clearTimeout(redirectTimer);
-      }
     };
-  }, [callbackUrl, router]);
+  }, [callbackUrl]);
 
   return (
     <View style={styles.container}>

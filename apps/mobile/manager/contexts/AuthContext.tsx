@@ -79,10 +79,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const optimisticProfile = buildFallbackManagerProfileFromSession(sessionHint);
         if (optimisticProfile) {
           setUser(optimisticProfile);
+          setIsLoading(false);
         }
-        setIsLoading(false);
-      } else {
-        setIsLoading(true);
       }
 
       const session =
@@ -114,19 +112,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const fallbackProfile = buildFallbackManagerProfileFromSession(session);
 
-      try {
-        await withTimeout(
-          touchHostedManagerDeviceLease(),
-          MANAGER_SESSION_TIMEOUT_MS,
-          "touchHostedManagerDeviceLease"
-        );
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes("timed out")) {
-          throw error;
-        }
-        console.info("[ManagerAuth] device lease touch timed out; continuing with fallback");
-      }
+      void touchHostedManagerDeviceLease(session.access_token).catch((error) => {
+        console.info("[ManagerAuth] device lease touch failed (non-blocking)", error);
+      });
 
       if (!isCurrent()) {
         return;

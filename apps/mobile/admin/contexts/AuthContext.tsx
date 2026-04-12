@@ -128,10 +128,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const optimisticProfile = buildFallbackAdminProfileFromSession(sessionHint);
         if (optimisticProfile) {
           setUser(optimisticProfile);
+          setIsLoading(false);
         }
-        setIsLoading(false);
-      } else {
-        setIsLoading(true);
       }
 
       authLog("restoring session");
@@ -157,26 +155,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const fallbackProfile = buildFallbackAdminProfileFromSession(session);
 
-      try {
-        authLog("touching hosted admin device lease");
-        await withTimeout(
-          touchHostedAdminDeviceLease(),
-          ADMIN_SESSION_TIMEOUT_MS,
-          "touchHostedAdminDeviceLease"
-        );
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes("timed out")) {
-          throw error;
-        }
-        authLog("device lease touch timed out; continuing with profile fallback");
-      }
+      void touchHostedAdminDeviceLease(session.access_token).catch((error) => {
+        authLog("device lease touch failed (non-blocking)", error);
+      });
 
       if (!isCurrent()) {
         return;
       }
 
-      let profile = await getAdminProfile(session.user.email ?? null);
+      let profile: AdminProfile | null = null;
+      try {
+        profile = await getAdminProfile(session.user.email ?? null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes("timed out")) {
+          throw error;
+        }
+        authLog("getAdminProfile timed out; continuing with session fallback");
+      }
       if (!profile && fallbackProfile) {
         authLog("using session metadata fallback for admin profile");
         profile = fallbackProfile;
@@ -215,6 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     let bootstrapping = true;
+    let sessionHandledByAuthListener = false;
 
     void supabase.auth.startAutoRefresh();
 
@@ -242,6 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
+        sessionHandledByAuthListener = true;
         await restoreSession(session);
       } finally {
         if (!cancelled) {
@@ -275,7 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
       } finally {
         bootstrapping = false;
-        if (!cancelled) {
+        if (!cancelled && !sessionHandledByAuthListener) {
           setIsLoading(false);
         }
       }

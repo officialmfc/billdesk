@@ -234,20 +234,23 @@ async function getHostedDeviceContext(): Promise<{ deviceId: string; deviceLabel
   return { deviceId, deviceLabel };
 }
 
-export async function touchHostedManagerDeviceLease(): Promise<void> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.access_token) {
-    throw new Error("No authenticated session is available.");
+export async function touchHostedManagerDeviceLease(accessToken?: string): Promise<void> {
+  let token = accessToken;
+  if (!token) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error("No authenticated session is available.");
+    }
+    token = session.access_token;
   }
 
   const { deviceId, deviceLabel } = await getHostedDeviceContext();
   const response = await fetch(`${authBaseUrl}/api/devices/lease`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

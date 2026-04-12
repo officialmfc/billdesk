@@ -108,15 +108,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const optimisticProfile = buildFallbackUserProfileFromSession(sessionHint);
         if (optimisticProfile) {
           setUser(optimisticProfile);
+          setIsLoading(false);
           authLog("session metadata fallback profile loaded", {
             userId: optimisticProfile.id,
             userType: optimisticProfile.userType,
             role: optimisticProfile.defaultRole,
           });
         }
-        setIsLoading(false);
-      } else {
-        setIsLoading(true);
       }
 
       authLog("restoring session");
@@ -142,30 +140,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const fallbackProfile = buildFallbackUserProfileFromSession(session);
 
+      void touchHostedUserDeviceLease(session.access_token).catch((error) => {
+        authLog("device lease touch failed (non-blocking)", error);
+      });
+
+      if (!isCurrent()) {
+        return;
+      }
+
       try {
-        authLog("touching hosted user device lease");
-        await withTimeout(
-          touchHostedUserDeviceLease(),
+        cachedProfile = await withTimeout(
+          getCurrentUserProfile(),
           USER_SESSION_TIMEOUT_MS,
-          "touchHostedUserDeviceLease"
+          "getCurrentUserProfile"
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (!message.includes("timed out")) {
           throw error;
         }
-        authLog("device lease touch timed out; continuing with profile fallback");
+        authLog("getCurrentUserProfile timed out; continuing with session fallback");
       }
-
-      if (!isCurrent()) {
-        return;
-      }
-
-      cachedProfile = await withTimeout(
-        getCurrentUserProfile(),
-        USER_SESSION_TIMEOUT_MS,
-        "getCurrentUserProfile"
-      );
       if (cachedProfile) {
         setUser(cachedProfile);
         authLog("cached profile loaded", {
@@ -204,13 +199,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(freshProfile);
         }
       } catch (error) {
-        if (!cachedProfile || !isCurrent()) {
+        if (!isCurrent()) {
           throw error;
+        }
+        if (!cachedProfile) {
+          const msg = error instanceof Error ? error.message : String(error);
+          if (!msg.includes("timed out")) {
+            throw error;
+          }
         }
         authError("sync current user data failed", error);
       }
     } catch (error) {
       if (!isCurrent()) {
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("timed out")) {
+        authError("restore session timed out, will retry", error);
+        setTimeout(() => void restoreSession(), 2000);
         return;
       }
 
@@ -229,6 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     let bootstrapping = true;
+    let sessionHandledByAuthListener = false;
 
     void supabase.auth.startAutoRefresh();
 
@@ -256,6 +265,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
+        sessionHandledByAuthListener = true;
         await restoreSession(session);
       } finally {
         if (!cancelled) {
@@ -290,7 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
       } finally {
         bootstrapping = false;
-        if (!cancelled) {
+        if (!cancelled && !sessionHandledByAuthListener) {
           setIsLoading(false);
         }
       }
@@ -304,22 +314,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const handleIncomingUrl = async (url: string): Promise<void> => {
+  const handleIncomingUrl = async (url: string): Promise<boolean> => {
     try {
       authLog("completing oauth redirect", { url });
       const handled = await completeOAuthRedirect(url);
       if (!handled) {
         authLog("incoming url ignored");
-        return;
+        return false;
       }
 
       authLog("oauth redirect completed");
+      return true;
     } catch (error) {
       authError("incoming url handling failed", error);
       await supabase.auth.signOut({ scope: "local" });
       await clearPersistedSupabaseSession();
       await clearUserAppCache();
       setUser(null);
+      return false;
     }
   };
 
