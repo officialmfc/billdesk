@@ -10,6 +10,11 @@ const ROOT_DIR = process.cwd();
 const ENV_PATH = path.join(ROOT_DIR, ".env.cf");
 const DEFAULT_ORIGINS = [
   "https://billmfc.vercel.app",
+  "https://auth.mondalfishcenter.com",
+  "https://auth-admin.mondalfishcenter.com",
+  "https://bill.mondalfishcenter.com",
+  "https://manager.bill.mondalfishcenter.com",
+  "https://user.bill.mondalfishcenter.com",
   "http://127.0.0.1:3000",
   "http://localhost:3000",
   "http://127.0.0.1:4173",
